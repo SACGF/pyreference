@@ -11,5 +11,6 @@ setup(name = 'pyreference',
       classifiers = [],
       install_requires=[
           'configargparse',
-      ])
+      ],
+      python_requires='>=2.7, >3.4')
 
