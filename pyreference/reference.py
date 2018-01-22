@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from deprecated import deprecated
 import gzip
 import json
 from lazy import lazy
@@ -9,6 +10,7 @@ from pyfasta.fasta import Fasta
 from six import raise_from
 
 from pyreference.gene import Gene
+from pyreference.transcript import Transcript
 from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature
 
 from .pyreference_config import load_params_from_config
@@ -70,35 +72,89 @@ class Reference(object):
     def _genes_dict(self):
         return _load_gzip_json(self._genes_json)
 
+    def get_transcript_dict(self, transcript_id):
+        transcripts_by_id = self._genes_dict["transcripts_by_id"]
+        return transcripts_by_id[transcript_id]
+
+
     @lazy
     def genes(self):
         ''' dict of {"gene_id" : Gene} '''
+        
+        
+        
         return {}
 
     @lazy
     def transcripts(self):
         ''' dict of {"transcript_id" : Transcript} '''
-        return {}
+        
+        transcripts_by_id = self._genes_dict["transcripts_by_id"]
+        return {transcript_id : self.get_transcript_by_id(transcript_id) for transcript_id in transcripts_by_id}     
+
+    @lazy
+    def protein_coding_genes(self):
+        '''Return dict of {gene_name: Gene} for protein coding genes'''
+        genes_dict = {}
+        for gene in self.genes_by_biotype["protein_coding"]:
+            genes_dict[gene.name] = gene
+        return genes_dict
+    
+#    @lazy
+#    def protein_coding_genes(self):
+#        ''' dict of {"gene_id" : Gene} '''
+#        
+#        gene_ids_by_biotype = self._genes_dict["gene_ids_by_biotype"]
+#        protein_coding_gene_ids = gene_ids_by_biotype["protein_coding"] 
+#        
+#        return {gene_id : self.get_gene_by_id(gene_id) for gene_id in protein_coding_gene_ids}      
+        
+
+    @lazy
+    def genes_by_biotype(self):
+        ''' dict of {"biotype" : array_of_genes_biotype }
+            This also includes 'tRNA' (from non-standard UCSC GTF) '''
+        gene_ids_by_biotype = self._genes_dict["gene_ids_by_biotype"]
+
+        genes_by_biotype = {}
+        for (biotype, gene_ids) in gene_ids_by_biotype.items():
+            genes = []
+            for gene_id in gene_ids:
+                genes.append(self.get_gene_by_id(gene_id))
+                
+            genes_by_biotype[biotype] = genes
+            
+        return genes_by_biotype
+
 
     @lazy
     def regions(self):
         return {}
     
-    @lazy
-    def genes_by_biotype(self):
-        return {}
-
-
     def get_gene_by_id(self, gene_id):
         genes_by_id = self._genes_dict["genes_by_id"]
         gene_dict = genes_by_id.get(gene_id)
         return Gene(self, gene_id, gene_dict)     
+
+    def get_transcript_by_id(self, transcript_id):
+        transcript_dict = self.get_transcript_dict(transcript_id)
+        return Transcript(self, transcript_id, transcript_dict)
 
 
     def get_gene_by_name(self, gene_name):
         gene_id_by_name = self._genes_dict["gene_id_by_name"]
         gene_id = gene_id_by_name[gene_name]
         return self.get_gene_by_id(gene_id)
+    
+    
+    @deprecated
+    def get_gene(self, gene_id):
+        return self.get_gene_by_id(self, gene_id)
+
+    @deprecated
+    def get_transcript(self, transcript_id):
+        return self.get_transcript_by_id(self, transcript_id)
+
     
     @lazy
     def genome(self):

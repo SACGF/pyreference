@@ -1,6 +1,11 @@
 '''
 Created on 19Jan.,2018
 
+TODO: ReferenceArgs to handle changing etc
+
+
+
+
 @author: dlawrence
 '''
 
@@ -20,6 +25,12 @@ def main():
     print(gata2) 
     print("promoter: %s" % gata2.get_promoter_sequence())
 
+
+    print("----------")
+    
+    for (gene_id, gene) in reference.protein_coding_genes.items():
+        print("gene_id=%s, gene=%s" % (gene_id, gene)) 
+    
 
 
 if __name__ == '__main__':

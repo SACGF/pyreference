@@ -13,11 +13,19 @@ from pyreference.transcript import Transcript
 class Gene(GenomicRegion):
     ''' Gene (which could contain multiple transcripts) '''
 
+    @property
+    def name(self):
+        return self.get_gene_name()
+
+    def get_gene_name(self):
+        return self._dict["name"]
+
     @lazy
     def transcripts(self):
         transcripts = []
-        transcripts_dict = self._dict["transcripts"]
-        for (transcript_id, td) in transcripts_dict.items():
+        
+        for transcript_id in self._dict["transcripts"]:
+            td = self.reference.get_transcript_dict(transcript_id)  
             transcript = Transcript(self.reference, transcript_id, td, gene=self)
             transcripts.append(transcript)
         return transcripts
@@ -57,5 +65,5 @@ class Gene(GenomicRegion):
 
 
     def __repr__(self):
-        return "%s (%s) %d transcripts" % (self.accession_id, self.iv, len(self.transcripts))
+        return "%s (%s) %d transcripts" % (self.get_gene_name(), self.accession_id, len(self.transcripts))
         

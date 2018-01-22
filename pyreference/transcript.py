@@ -1,6 +1,15 @@
+import HTSeq
 from lazy import lazy
+import logging
 
 from pyreference.genomic_region import GenomicRegion
+from pyreference.utils.genomics_utils import GenomicInterval_from_directional, \
+    last_base
+
+
+class NotOnTranscriptException(Exception):
+    ''' For when a transcription position is not on a transcript '''
+    pass
 
 
 class Transcript(GenomicRegion):
@@ -8,12 +17,17 @@ class Transcript(GenomicRegion):
         gene = kwargs.pop("gene", None)
         super(Transcript, self).__init__(*args, **kwargs)
         self.gene = gene
-        
+    
+    def get_gene_id(self):
+        return self.gene.get_id() 
 
     @lazy
     def is_coding(self):
-        feature_types = set(self._dict["exons_by_type"])
-        return {"CDS", "start_codon", "stop_codon"} & feature_types
+        feature_types = set(self._dict["exons_by_type"].keys())
+        for ft in ["CDS", "start_codon", "stop_codon"]:
+            if ft in feature_types:
+                return True
+        return False
 
 
     def get_representative_transcript(self):
@@ -62,4 +76,102 @@ class Transcript(GenomicRegion):
     def get_3putr_sequence(self):
         return self.get_sequence_from_features("3PUTR")
 
+    def get_intron_ivs(self):
+        '''
+        Purpose: Get list of intron intervals for the the transcript
+        Output: A list of HTSeq Genomic Interval instances for all introns in the transcript (ordered according to strand)
+        '''
+        intron_ivs = []
+        previous_exon = None
+        for exon in self.get_features("exon"): # This is in stranded order
+            if previous_exon:
+                # HTSeq ends are 1 past the last base of the sequence.
+                # Thus for touching sequences like exons/introns, first_seq.end = second_seq.start
+                intron_start = previous_exon.iv.end_d
+                intron_end = exon.iv.start_d
+                intron_length = abs(intron_end - intron_start)
+                intron = GenomicInterval_from_directional(exon.iv.chrom, intron_start, intron_length, exon.iv.strand)
+                intron_ivs.append(intron)
+            previous_exon = exon
+        return intron_ivs
     
+    def get_intron_sequences(self):
+        '''
+        Get list of intron sequences for transcript
+        Output: List of sequences (intron order and sequences are 5' to 3')
+        '''
+        list_of_intron_intervals = self.get_intron_ivs()
+        intron_sequences = []
+        for intron in list_of_intron_intervals:
+            intron_sequences.append(self.reference.get_sequence_from_iv(intron))
+        return intron_sequences
+    
+    
+    def get_genomic_position(self, pos_on_transcript):
+        '''
+        Converts 0-based position on a transcript into 0-based position on the chromosome
+        Arguments -- position relative to 5' end of transcript (int) 
+        Returns -- position on chromosome (int)
+        '''    
+        logging.debug("Searching %s for %d", self.get_id(), pos_on_transcript)
+        
+        running_exon_length = 0
+        previous_running_exon_length = 0
+        #go through exons in order, adding to running_exon_length, until you find the one with the miR seed start position in it
+        for exon in self.get_features("exon"):
+            running_exon_length += exon.iv.length
+            if pos_on_transcript < running_exon_length: #match start is in this exon
+                logging.debug("found the exon, %r running exon length is: %r", exon, running_exon_length)
+                logging.debug("previous_running_exon_length is %r:", previous_running_exon_length)
+                logging.debug("exon start_d and end_d are: %r, %r", exon.iv.start_d, exon.iv.end_d)
+                genomic_pos_of_exon_start = exon.iv.start_d
+                pos_on_this_exon = pos_on_transcript - previous_running_exon_length
+                logging.debug("position on this exon is %r", pos_on_this_exon)
+                if exon.iv.strand == '+':
+                    genomic_position_of_match_start = genomic_pos_of_exon_start + pos_on_this_exon
+                elif exon.iv.strand == '-':
+                    genomic_position_of_match_start = genomic_pos_of_exon_start - pos_on_this_exon
+                else:
+                    raise ValueError("strand must be + or -, not: %r" % exon.iv.strand)
+                return genomic_position_of_match_start
+            previous_running_exon_length += exon.iv.length
+
+        raise NotOnTranscriptException("%s didn't contain %s" % (self.get_id(), pos_on_transcript))
+
+
+    # TODO: Should I move the get_region_extents into get_transcript Position?
+    # advantage of get_extends is you pass in an interval so can use both sides
+    # (to know at least one side is touching exon)
+    def get_transcript_positions(self, iv):
+        if not self.is_coding:
+            raise NotOnTranscriptException(self.get_id() + " is non-coding")
+
+        (start, end) = self.get_first_and_last_genomic_position_on_transcript(iv)
+        if start is None or end is None:
+            raise NotOnTranscriptException("Could not determine exon region extents for", iv)
+
+        start_mpos   = self.get_transcript_position(start)
+        end_mpos     = self.get_transcript_position(end)
+        if self.iv.strand == '-':
+            (start_mpos, end_mpos)  = (end_mpos, start_mpos)
+        return (start_mpos, end_mpos)
+
+    def get_first_and_last_genomic_position_on_transcript(self, iv):
+        ''' returns lowest/greatest point on transcript that intersects with IV '''
+        region_intervals = []
+        for feature in self.features_by_type["exon"]:
+            if iv.overlaps(feature.iv):
+                overlap_start = max(iv.start, feature.iv.start)
+                overlap_end = min(iv.end, feature.iv.end)
+
+                overlap_iv = HTSeq.GenomicInterval(iv.chrom, overlap_start, overlap_end, iv.strand)
+                region_intervals.append(overlap_iv)
+                
+        start = None
+        end = None
+        if len(region_intervals) > 0:
+            start = region_intervals[0].start_as_pos
+            end = last_base(region_intervals[-1])
+
+        return (start, end)
+
