@@ -1,11 +1,4 @@
-'''
-Created on 19Jan.,2018
-
-TODO: ReferenceArgs to handle changing etc
-
-
-@author: dlawrence
-'''
+from __future__ import print_function, absolute_import
 
 import HTSeq
 from argparse import ArgumentParser
@@ -14,7 +7,7 @@ import six
 import sys
 
 import numpy as np
-from pyreference import Reference, reference
+from pyreference import Reference
 from pyreference.utils import iv_iterators
 from pyreference.utils.csv_utils import write_csv_dict
 from pyreference.utils.file_utils import name_from_file_name
@@ -59,7 +52,7 @@ def get_length_counts(bam, regions_array, has_chr, reverse_strand):
     return length_counters
 
 
-def create_biotype_regions_array(genes_by_biotype, interesting_biotypes=None):
+def create_biotype_regions_array(reference, interesting_biotypes=None):
     ''' genes_by_biotype : dict of {"biotype" : genes[]}
         interesting_biotypes : List of Strings corresponding to biotype keys (everything else is 'other') '''
 
@@ -67,7 +60,7 @@ def create_biotype_regions_array(genes_by_biotype, interesting_biotypes=None):
         interesting_biotypes = ['protein_coding', 'rRNA', 'lincRNA', 'misc_RNA', 'snRNA', 'miRNA','snoRNA', 'tRNA']
     
     other_biotypes = [] # Everything non interesting is counted as "other"
-    for biotype in genes_by_biotype.keys():
+    for biotype in reference.genes_by_biotype.keys():
         if biotype not in interesting_biotypes:
             other_biotypes.append(biotype)
 
@@ -80,20 +73,21 @@ def create_biotype_regions_array(genes_by_biotype, interesting_biotypes=None):
         return gene.biotype
 
     regions = HTSeq.GenomicArray( "auto", stranded=True, typecode='O' )
-    for transcript in six.itervalues(reference.transcripts): #@UndefinedVariable
+    for transcript in six.itervalues(reference.transcripts):
         #Antisense: Read is in the region of a transcript, but on the opposite strand.
         antisense_iv = transcript.iv.copy()
         antisense_iv.strand = opposite_strand(antisense_iv.strand)
         regions[antisense_iv] = "anti-sense"
     
-    for gene in genes_by_biotype["protein_coding"]:
+    for gene in six.itervalues(reference.genes):
         for transcript in gene.transcripts:
             regions[transcript.iv] = "introns" 
 
     for biotype in other_biotypes + interesting_biotypes:
-        for gene in genes_by_biotype[biotype]:
+        genes = reference.genes_by_biotype.get(biotype, [])
+        for gene in genes:
             for t in gene.transcripts:
-                for exon in t.features_by_type["exon"]:
+                for exon in t.get_features("exon"):
                     regions[exon.iv] = get_biotype(gene)
     return regions
 
@@ -113,18 +107,18 @@ def add_intervals_to_regions_array(regions_array, intervals, intervals_name, has
             regions_array[iv] = intervals_name
 
 
-
 def main():
     args = handle_args()
 
     # Use this as a test platform to load reference
     reference = Reference()
 
-    regions_array = create_biotype_regions_array(reference.genes_by_biotype)
+    regions_array = create_biotype_regions_array(reference)
 
     if args.intervals:
         add_intervals_to_regions_array(regions_array, args.intervals, args.intervals_name, reference.has_chr, args.reverse_strand)
     
+    print("Loaded reference - reading BAM")
     length_counters = get_length_counts(args.bam, regions_array, reference.has_chr, args.reverse_strand)
         
     start = sys.maxint
@@ -171,7 +165,7 @@ def main():
     
     sample_name = name_from_file_name(args.bam)
     
-    for (y_label, op) in graph_types.iteritems():
+    for (y_label, op) in six.iteritems(graph_types):
         graph_image =  "%s.%s.regions.png" % (sample_name, y_label)
         data = [op(i) for i in arrays]
         

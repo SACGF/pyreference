@@ -8,7 +8,6 @@ import gzip
 import json
 import sys
 
-from pyreference import settings
 from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, CODING_FEATURES, \
     PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
 from pyreference.utils.file_utils import name_from_file_name
@@ -105,6 +104,7 @@ def main():
         if gene is None:
             gene = {"name" : gene_name,
                     "transcripts" : set(),
+                    "biotype" : set(),
                     CHROM : feature.iv.chrom,
                     START : feature.iv.start,
                     END : feature.iv.end,
@@ -150,6 +150,7 @@ def main():
             biotype = get_biotype_from_transcript_id(transcript_id)
         
         if biotype:
+            gene["biotype"].add(biotype)
             transcript["biotype"].add(biotype)
         
         gene_ids_by_biotype[biotype].add(gene_id)

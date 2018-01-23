@@ -1,5 +1,3 @@
-from __future__ import print_function, absolute_import
-
 '''
 Unit tests for sacgf.genomics.reference.Reference
 
@@ -7,10 +5,14 @@ Created on Jun 20, 2012
 
 @author: dlawrence
 '''
+
+from __future__ import print_function, absolute_import
+
 import HTSeq
 from inspect import getsourcefile
 import os
 from os.path import abspath
+import six
 import unittest
 
 from pyreference import Reference
@@ -97,7 +99,7 @@ class Test(unittest.TestCase):
     def test_promoter(self):
         tests = {"NM_018390_2" : "CCGGGCAGCAGGGAAGATCT", "NM_013239" : "CGCAGTGACGTGAACGCGGG"}
         
-        for (tss_id, expected_promoter_sequence) in tests.iteritems():
+        for (tss_id, expected_promoter_sequence) in six.iteritems(tests):
             transcript = self.reference.transcripts[tss_id]
             promoter_sequence = str(transcript.get_promoter_sequence(10)).upper()
             #print "promoter sequence = %s" % promoter_sequence

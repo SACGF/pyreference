@@ -20,6 +20,13 @@ class Gene(GenomicRegion):
     def get_gene_name(self):
         return self._dict["name"]
 
+    @property
+    def biotype(self):
+        return '/'.join(sorted(self.get_biotypes()))
+
+    def get_biotypes(self):
+        return self._dict["biotype"]
+
     @lazy
     def transcripts(self):
         transcripts = []
