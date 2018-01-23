@@ -1,13 +1,5 @@
-'''
-Created on 22Jan.,2018
-
-
-@author: dlawrence
-'''
-
 from __future__ import print_function, absolute_import
 
-import HTSeq
 import abc
 from lazy import lazy
 

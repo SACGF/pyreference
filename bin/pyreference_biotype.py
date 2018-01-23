@@ -4,19 +4,19 @@ Created on 19Jan.,2018
 TODO: ReferenceArgs to handle changing etc
 
 
-
-
 @author: dlawrence
 '''
 
 import HTSeq
 from argparse import ArgumentParser
 from collections import Counter
+import six
 import sys
 
 import numpy as np
 from pyreference import Reference, reference
 from pyreference.utils import iv_iterators
+from pyreference.utils.csv_utils import write_csv_dict
 from pyreference.utils.file_utils import name_from_file_name
 from pyreference.utils.genomics_utils import opposite_strand, format_chrom
 from pyreference.utils.graphing import write_stacked_bar_graph, \
@@ -80,7 +80,7 @@ def create_biotype_regions_array(genes_by_biotype, interesting_biotypes=None):
         return gene.biotype
 
     regions = HTSeq.GenomicArray( "auto", stranded=True, typecode='O' )
-    for transcript in reference.transcripts.itervalues():
+    for transcript in six.itervalues(reference.transcripts): #@UndefinedVariable
         #Antisense: Read is in the region of a transcript, but on the opposite strand.
         antisense_iv = transcript.iv.copy()
         antisense_iv.strand = opposite_strand(antisense_iv.strand)
