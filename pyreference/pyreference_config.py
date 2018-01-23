@@ -6,13 +6,9 @@ TODO: Link to wiki page about config file format
 @author: dlawrence
 '''
 
-try:
-    import ConfigParser as configparser
-except:
-    import configparser
-
 import os
 from six import reraise, raise_from
+from six.moves import configparser #@UnresolvedImport
 import sys
 
 

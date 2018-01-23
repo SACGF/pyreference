@@ -1,4 +1,7 @@
+from __future__ import print_function, absolute_import
+
 import HTSeq
+from deprecated import deprecated
 from lazy import lazy
 import logging
 
@@ -40,9 +43,14 @@ class Transcript(GenomicRegion):
             length += feature["end"] - feature["start"] 
         return length
 
+    @deprecated(reason="Use get_features_in_stranded_order")
+    def get_features(self, feature_type):
+        return self.get_features_in_stranded_order(feature_type)
+
 
     def get_features_in_stranded_order(self, feature_type):
         '''features returned sorted 5' -> 3' '''
+        print("self._dict = %s" % self._dict)
 
         is_reversed = self._dict["strand"] == '-'
         if is_reversed:

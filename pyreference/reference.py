@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 
 from deprecated import deprecated
 import gzip
@@ -147,13 +147,13 @@ class Reference(object):
         return self.get_gene_by_id(gene_id)
     
     
-    @deprecated
+    @deprecated(reason="Use gene_gene_by_id")
     def get_gene(self, gene_id):
-        return self.get_gene_by_id(self, gene_id)
+        return self.get_gene_by_id(gene_id)
 
-    @deprecated
+    @deprecated(reason="Use get_transcript_by_id")
     def get_transcript(self, transcript_id):
-        return self.get_transcript_by_id(self, transcript_id)
+        return self.get_transcript_by_id(transcript_id)
 
     
     @lazy

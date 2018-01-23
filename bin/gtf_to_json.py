@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 
 import HTSeq
 from collections import defaultdict
@@ -82,6 +82,7 @@ def main():
         transcript = transcripts_by_id[transcript_id]
         exon_dict = {"start" : feature.iv.start,
                      "end" : feature.iv.end,
+                     "strand" : feature.iv.strand,
                      "num" : feature.attr["exon_number"]}
     
         transcript["features_by_type"][feature.type].append(exon_dict)
@@ -102,7 +103,8 @@ def main():
     
     genes_json_gz = name_from_file_name(gtf_file) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
-        json.dump(data, outfile, cls=SetEncoder)
+        json_str = json.dumps(data, cls=SetEncoder)
+        outfile.write(json_str.encode('utf-8')) 
 
     print("Wrote:", genes_json_gz)
     
