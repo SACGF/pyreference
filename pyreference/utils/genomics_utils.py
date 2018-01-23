@@ -5,17 +5,18 @@ Created on 22Jan.,2018
 '''
 import HTSeq
 
+from pyreference.settings import CHROM, START, END, STRAND
+
 
 def HTSeqInterval_to_pyfasta_feature(iv):
-    return {'chr' : iv.chrom, 'start' : iv.start, 'stop' : iv.end, 'strand' : iv.strand}
+    return {CHROM : iv.chrom, START : iv.start, END : iv.end, STRAND : iv.strand}
 
 def dict_to_iv(data):
-    chrom = str(data["chrom"])
-    start = data["start"]
-    end = data["end"]
-    strand = str(data["strand"])
+    chrom = str(data[CHROM])
+    start = data[START]
+    end = data[END]
+    strand = str(data[STRAND])
     return HTSeq.GenomicInterval(chrom, start, end, strand)
-
 
 
 def iv_from_pos_range(g_pos, range_length):
@@ -46,6 +47,15 @@ def GenomicInterval_from_directional( chrom, start_d, length, strand="." ):
         return HTSeq.GenomicInterval( chrom, start_d, start_d+length, strand )
     else:
         return HTSeq.GenomicInterval( chrom, start_d-length+1, start_d+1, strand )
+
+
+def get_unique_features_from_genomic_array_of_sets_iv(genomic_array_of_sets, iv):
+    '''Collapse genomic array of sets into a unique list of the values in that region'''
+    all_values = set()
+    for iv, values_in_iv in genomic_array_of_sets[iv].steps():
+        all_values.update(values_in_iv)
+    return all_values
+
 
 # HTSeq documentation says end = the end of the interval. Following Python convention for ranges, this
 # is *ONE MORE* than the coordinate of the last base that is considered part of the sequence.

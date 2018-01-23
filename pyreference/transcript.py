@@ -1,10 +1,12 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
+from deprecated import deprecated
 from lazy import lazy
 import logging
 
 from pyreference.genomic_region import GenomicRegion
+from pyreference.settings import START, END, IS_CODING, CHROM, STRAND
 from pyreference.utils.genomics_utils import GenomicInterval_from_directional, \
     last_base, dict_to_iv
 
@@ -23,14 +25,8 @@ class Transcript(GenomicRegion):
     def get_gene_id(self):
         return self.gene.get_id() 
 
-    @lazy
     def is_coding(self):
-        feature_types = set(self._dict["exons_by_type"].keys())
-        for ft in ["CDS", "start_codon", "stop_codon"]:
-            if ft in feature_types:
-                return True
-        return False
-
+        return self._dict[IS_CODING]
 
     def get_representative_transcript(self):
         return self
@@ -39,15 +35,13 @@ class Transcript(GenomicRegion):
     def get_features_length(self, feature_type):
         length = 0
         for feature in self.get_features_in_stranded_order(feature_type):
-            length += feature["end"] - feature["start"] 
+            length += feature[END] - feature[START] 
         return length
 
     #@deprecated(reason="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
         genomic_features = []
-        transcript_chrom = self._dict["chrom"]
         for f in self.get_features_in_stranded_order(feature_type):
-            f["chrom"] = transcript_chrom
             iv = dict_to_iv(f)
             genomic_feature = HTSeq.GenomicFeature(self.get_id(), feature_type, iv)
             genomic_features.append(genomic_feature)
@@ -60,19 +54,47 @@ class Transcript(GenomicRegion):
 
         is_reversed = self._dict["strand"] == '-'
         if is_reversed:
-            stranded_start = "end"
+            stranded_start = END
         else:
-            stranded_start = "start"
+            stranded_start = START
             
         features_by_type = self._dict["features_by_type"]
-        features = features_by_type[feature_type]
-        #print("feature_type: %s" % features_by_type)
-        
-        return sorted(features, key=lambda x : x[stranded_start], reverse=is_reversed)
+        features = features_by_type.get(feature_type, [])
+        if features:
+            # Need to add this as not in there by default
+            transcript_chrom = self._dict[CHROM]
+            transcript_strand = self._dict[STRAND]
 
-    @property
+            for f in features:
+                f[CHROM] = transcript_chrom
+                f[STRAND] = transcript_strand
+
+            features = sorted(features, key=lambda x : x[stranded_start], reverse=is_reversed)
+        return features
+
+    @lazy
     def length(self):
         return self.get_features_length("exon")
+    
+    @deprecated(reason="Use Transcript.length")
+    def get_transcript_length(self):
+        return self.length
+
+    def get_transcript_position(self, pos):
+        previous_exon_lengths = 0
+        for exon in self.get_features("exon"):
+            if exon.iv.contains(pos):
+                exon_pos = abs(pos.pos - exon.iv.start_d)
+                return previous_exon_lengths + exon_pos
+            else:
+                previous_exon_lengths += exon.iv.length
+
+        raise NotOnTranscriptException("Couldn't find %s in transcript %s exons" % (pos, self.get_id()))
+
+    def get_codon_position(self, feature_type):
+        # There could be 2 split across diff exons (aarrgh!) this is rare so do it twice and get the 1st one
+        codon_positions = [f.iv.start_d_as_pos for f in self.get_features(feature_type)]
+        return min([self.get_transcript_position(p) for p in codon_positions])
     
     
     def get_sequence_from_features(self, feature_type):

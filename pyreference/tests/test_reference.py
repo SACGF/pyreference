@@ -106,8 +106,7 @@ class Test(unittest.TestCase):
         fiveputr_len = len(transcript.get_5putr_sequence())
         self.assertEquals(mpos, fiveputr_len)
 
-        last_base = last_base(transcript.iv)
-        mpos = transcript.get_transcript_position(last_base)
+        mpos = transcript.get_transcript_position(last_base(transcript.iv))
         self.assertEquals(mpos, len(transcript.get_transcript_sequence())-1)
 
 

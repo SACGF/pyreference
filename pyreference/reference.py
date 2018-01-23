@@ -1,20 +1,22 @@
 from __future__ import print_function, absolute_import
 
+import HTSeq
 from deprecated import deprecated
 import gzip
 import json
 from lazy import lazy
 import operator
 import os
-import six
 from pyfasta.fasta import Fasta
+import six
 
 from pyreference.gene import Gene
 from pyreference.transcript import Transcript
-from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature
+from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature, \
+    get_unique_features_from_genomic_array_of_sets_iv
 
-from .pyreference_config import load_params_from_config
-
+from pyreference.pyreference_config import load_params_from_config
+from pyreference import settings
 
 def _load_gzip_json(gz_json_file_name):
     with gzip.open(gz_json_file_name) as f:
@@ -24,6 +26,17 @@ def _load_gzip_json(gz_json_file_name):
         else:
             json_str = json_bytes.decode('ascii')
         data = json.loads(json_str)
+        
+    pyreference_json_version = data[settings.PYREFERENCE_JSON_VERSION_KEY]
+    if settings.PYREFERENCE_JSON_VERSION != pyreference_json_version:
+        params = {"version_key" : settings.PYREFERENCE_JSON_VERSION_KEY,
+                  "current_version" : settings.PYREFERENCE_JSON_VERSION,
+                  "json_version" : pyreference_json_version,
+                  "file_name" : gz_json_file_name}
+        msg = "PyReference with %(version_key)s %(current_version)d attempted to load '%(file_name)s' with %(version_key)s: %(json_version)d.\n" % params
+        msg +=  "Please re-create with this version of gtf_to_json.py."
+        raise ValueError(msg)
+      
     return data
 
 
@@ -46,6 +59,8 @@ class Reference(object):
             
             Any passed parameters will overwrite those from the config file 
             
+            stranded - interval tests are stranded? (default True) 
+            
             '''
 
         # May not need to have config file if they passed in params 
@@ -62,6 +77,7 @@ class Reference(object):
         self._trna_json = params.get("trna_json")
         self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta") 
         self._genome_sequence_fasta = params.get("genome_sequence_fasta")
+        self.stranded = kwargs.get("stranded", True)
 
         # Need at least this
         if self._genes_json is None:
@@ -83,17 +99,23 @@ class Reference(object):
     @lazy
     def genes(self):
         ''' dict of {"gene_id" : Gene} '''
-        
-        
-        
-        return {}
 
+        genes_by_id = self._genes_dict["genes_by_id"]
+        genes = {}
+        for gene_id in genes_by_id:
+            genes[gene_id] = self.get_gene_by_id(gene_id)
+        return genes
+    
     @lazy
     def transcripts(self):
         ''' dict of {"transcript_id" : Transcript} '''
-        
-        transcripts_by_id = self._genes_dict["transcripts_by_id"]
-        return {transcript_id : self.get_transcript_by_id(transcript_id) for transcript_id in transcripts_by_id}     
+
+        # Implement in terms of genes so that it shares Transcript objects (with gene set)        
+        transcripts = {}
+        for g in six.itervalues(self.genes):
+            for t in g.transcripts:
+                transcripts[t.get_id()] = t
+        return transcripts
 
     @lazy
     def protein_coding_genes(self):
@@ -102,16 +124,6 @@ class Reference(object):
         for gene in self.genes_by_biotype["protein_coding"]:
             genes_dict[gene.name] = gene
         return genes_dict
-    
-#    @lazy
-#    def protein_coding_genes(self):
-#        ''' dict of {"gene_id" : Gene} '''
-#        
-#        gene_ids_by_biotype = self._genes_dict["gene_ids_by_biotype"]
-#        protein_coding_gene_ids = gene_ids_by_biotype["protein_coding"] 
-#        
-#        return {gene_id : self.get_gene_by_id(gene_id) for gene_id in protein_coding_gene_ids}      
-        
 
     @lazy
     def genes_by_biotype(self):
@@ -158,7 +170,6 @@ class Reference(object):
     def get_transcript(self, transcript_id):
         return self.get_transcript_by_id(transcript_id)
 
-    
     @lazy
     def genome(self):
         if not self._genome_sequence_fasta:
@@ -187,8 +198,6 @@ class Reference(object):
 
 
     def get_sequence_from_features(self, features):
-        ''' features: iterable of pyfasta_features '''
-        
         sequences = []
         for feature in features:
             sequences.append(self.get_sequence_from_pyfasta_feature(feature))
@@ -199,6 +208,19 @@ class Reference(object):
             sequence = ""    
         return sequence
 
+    ###########################
+    # Retrieve gene/transcript info by interval
+    # Done by building a HTSeq GenomicArrayOfSets
+    
+    @lazy
+    def genomic_transcripts(self):
+        ''' GenomicArrayOfSets containing transcripts - used for lookups '''
+        transcripts_gas = HTSeq.GenomicArrayOfSets("auto", self.stranded)
+        for t in self.transcripts.values():
+            transcripts_gas[t.iv] += t
+
+        return transcripts_gas
+
         
     def get_longest_coding_transcript(self, g_pos):
         '''returns longest coding transcript overlapping a genomic position'''
@@ -207,11 +229,34 @@ class Reference(object):
 
         for transcript in self.genomic_transcripts[g_pos]:
             if transcript.is_coding:
-                for feature in transcript.features_by_type["exon"]:
+                for feature in transcript.get_features("exon"):
                     if feature.iv.contains(g_pos):
                         if longest_coding_transcript is None or transcript_is_better(transcript):
                             longest_coding_transcript = transcript
         return longest_coding_transcript
 
+    def get_transcripts_in_iv(self, iv):
+        '''Returns: list of transcripts in genomic interval'''
+        transcripts = get_unique_features_from_genomic_array_of_sets_iv(self.genomic_transcripts, iv)
+        return list(transcripts)
 
+    def get_transcript_ids(self, iv):
+        return [feature.name for feature in self.get_transcripts_in_iv(iv)]
+
+    def get_gene_names_array(self, iv):
+        return list(set([t.get_gene_id() for t in self.get_transcripts_in_iv(iv)]))
+
+    def get_gene_names(self, interval):
+        '''Returns a string of gene names'''
+        gene_names = self.get_gene_names_array(interval)
+        return " ".join(gene_names)
+
+
+
+    @lazy
+    def has_chr(self):
+        transcripts_by_id = self._genes_dict["transcripts_by_id"]
+        some_transcript = six.next(six.itervalues(transcripts_by_id))
+        chrom = some_transcript["chr"]
+        return chrom.startswith("chr")
 
