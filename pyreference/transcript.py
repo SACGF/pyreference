@@ -1,13 +1,12 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-from deprecated import deprecated
 from lazy import lazy
 import logging
 
 from pyreference.genomic_region import GenomicRegion
 from pyreference.utils.genomics_utils import GenomicInterval_from_directional, \
-    last_base
+    last_base, dict_to_iv
 
 
 class NotOnTranscriptException(Exception):
@@ -45,8 +44,15 @@ class Transcript(GenomicRegion):
 
     #@deprecated(reason="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
-        # TODO: Need to convert to GenomicFeature
-        return self.get_features_in_stranded_order(feature_type)
+        genomic_features = []
+        transcript_chrom = self._dict["chrom"]
+        for f in self.get_features_in_stranded_order(feature_type):
+            f["chrom"] = transcript_chrom
+            iv = dict_to_iv(f)
+            genomic_feature = HTSeq.GenomicFeature(self.get_id(), feature_type, iv)
+            genomic_features.append(genomic_feature)
+        
+        return genomic_features 
 
 
     def get_features_in_stranded_order(self, feature_type):
@@ -73,7 +79,8 @@ class Transcript(GenomicRegion):
         features = self.get_features_in_stranded_order(feature_type)
         return self.reference.get_sequence_from_features(features)
 
-    
+    def get_transcript_sequence(self):
+        return self.get_sequence_from_features("exon")
     
     def get_coding_sequence(self):
         ''' Warning: There are frame shift issues not handled here.
@@ -166,10 +173,11 @@ class Transcript(GenomicRegion):
             (start_mpos, end_mpos)  = (end_mpos, start_mpos)
         return (start_mpos, end_mpos)
 
+
     def get_first_and_last_genomic_position_on_transcript(self, iv):
         ''' returns lowest/greatest point on transcript that intersects with IV '''
         region_intervals = []
-        for feature in self.features_by_type["exon"]:
+        for feature in self.get_features("exon"):
             if iv.overlaps(feature.iv):
                 overlap_start = max(iv.start, feature.iv.start)
                 overlap_end = min(iv.end, feature.iv.end)

@@ -9,6 +9,13 @@ import HTSeq
 def HTSeqInterval_to_pyfasta_feature(iv):
     return {'chr' : iv.chrom, 'start' : iv.start, 'stop' : iv.end, 'strand' : iv.strand}
 
+def dict_to_iv(data):
+    chrom = str(data["chrom"])
+    start = data["start"]
+    end = data["end"]
+    strand = str(data["strand"])
+    return HTSeq.GenomicInterval(chrom, start, end, strand)
+
 
 
 def iv_from_pos_range(g_pos, range_length):

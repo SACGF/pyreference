@@ -1,17 +1,18 @@
-from __future__ import print_function, absolute_import
-
 '''
 Created on 22Jan.,2018
 
 
 @author: dlawrence
 '''
+
+from __future__ import print_function, absolute_import
+
 import HTSeq
 import abc
 from lazy import lazy
 
 from pyreference.utils.genomics_utils import iv_from_pos_range, \
-    iv_from_pos_directional_before_after
+    iv_from_pos_directional_before_after, dict_to_iv
 
 
 class GenomicRegion(object):
@@ -26,11 +27,7 @@ class GenomicRegion(object):
     
     @lazy
     def iv(self):
-        chrom = str(self._dict["chrom"])
-        start = self._dict["start"]
-        end = self._dict["end"]
-        strand = str(self._dict["strand"])
-        return HTSeq.GenomicInterval(chrom, start, end, strand)
+        return dict_to_iv(self._dict)
 
     @lazy    
     def tss(self):

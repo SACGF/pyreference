@@ -200,7 +200,18 @@ class Reference(object):
         return sequence
 
         
+    def get_longest_coding_transcript(self, g_pos):
+        '''returns longest coding transcript overlapping a genomic position'''
+        longest_coding_transcript = None
+        transcript_is_better = lambda t : t.iv.length > longest_coding_transcript.iv.length
 
+        for transcript in self.genomic_transcripts[g_pos]:
+            if transcript.is_coding:
+                for feature in transcript.features_by_type["exon"]:
+                    if feature.iv.contains(g_pos):
+                        if longest_coding_transcript is None or transcript_is_better(transcript):
+                            longest_coding_transcript = transcript
+        return longest_coding_transcript
 
 
 
