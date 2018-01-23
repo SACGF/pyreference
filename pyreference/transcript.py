@@ -43,14 +43,14 @@ class Transcript(GenomicRegion):
             length += feature["end"] - feature["start"] 
         return length
 
-    @deprecated(reason="Use get_features_in_stranded_order")
+    #@deprecated(reason="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
+        # TODO: Need to convert to GenomicFeature
         return self.get_features_in_stranded_order(feature_type)
 
 
     def get_features_in_stranded_order(self, feature_type):
         '''features returned sorted 5' -> 3' '''
-        print("self._dict = %s" % self._dict)
 
         is_reversed = self._dict["strand"] == '-'
         if is_reversed:
@@ -58,9 +58,11 @@ class Transcript(GenomicRegion):
         else:
             stranded_start = "start"
             
-        features_by_type = self._dict["exons_by_type"]
+        features_by_type = self._dict["features_by_type"]
+        features = features_by_type[feature_type]
+        #print("feature_type: %s" % features_by_type)
         
-        return sorted(features_by_type, key=lambda x : x[stranded_start], reverse=is_reversed)
+        return sorted(features, key=lambda x : x[stranded_start], reverse=is_reversed)
 
     @property
     def length(self):

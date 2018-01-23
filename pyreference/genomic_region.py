@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+
 '''
 Created on 22Jan.,2018
 
@@ -24,10 +26,10 @@ class GenomicRegion(object):
     
     @lazy
     def iv(self):
-        chrom = self._dict["chrom"]
+        chrom = str(self._dict["chrom"])
         start = self._dict["start"]
         end = self._dict["end"]
-        strand = self._dict["strand"]
+        strand = str(self._dict["strand"])
         return HTSeq.GenomicInterval(chrom, start, end, strand)
 
     @lazy    

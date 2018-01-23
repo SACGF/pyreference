@@ -22,11 +22,6 @@ class SetEncoder(json.JSONEncoder):
             return list(obj)
         return json.JSONEncoder.default(self, obj)
 
-def create_transcript():
-    return {"features_by_type" : defaultdict(list),
-            "biotype" : set()}
-
-
 def get_biotype_from_transcript_id(transcript_id):
     biotypes_by_transcript_id_start = {"NM_" : "protein_coding", "NR_" : "non_coding"}
     for (start, biotype) in biotypes_by_transcript_id_start.items():
@@ -37,6 +32,16 @@ def get_biotype_from_transcript_id(transcript_id):
         return "tRNA"
     return "N/A"
 
+def update_extents(genomic_region_dict, feature):
+    start = genomic_region_dict["start"]
+    if feature.iv.start < start:
+        genomic_region_dict["start"] = feature.iv.start  
+    
+    end = genomic_region_dict["end"]
+    if feature.iv.end > end:
+        genomic_region_dict["end"] = feature.iv.end  
+
+
 
 def main():
     if len(sys.argv) != 2:
@@ -46,17 +51,17 @@ def main():
     gtf_file = sys.argv[1]
     
     genes_by_id = {}
-    transcripts_by_id = defaultdict(create_transcript)
+    transcripts_by_id = {}
     gene_id_by_name = {}
     gene_ids_by_biotype = defaultdict(set)
     
     for feature in HTSeq.GFF_Reader(gtf_file):
         gene_id = feature.attr["gene_id"]
         
-        gene = genes_by_id.get(gene_id)
         gene_name = feature.attr["gene_name"]
         gene_id_by_name[gene_name] = gene_id # TODO: Check for dupes?
-        
+
+        gene = genes_by_id.get(gene_id)
         if gene is None:
             gene = {"name" : gene_name,
                     "transcripts" : set(),
@@ -67,25 +72,28 @@ def main():
         
             genes_by_id[gene_id] = gene
         else:
-            # Update start/end
-            start = gene["start"]
-            if feature.iv.start < start:
-                gene["start"] = feature.iv.start  
-            
-            end = gene["end"]
-            if feature.iv.end > end:
-                gene["end"] = feature.iv.end  
-    
+            update_extents(gene, feature)
     
         transcript_id = feature.attr["transcript_id"]
         gene["transcripts"].add(transcript_id)
-        transcript = transcripts_by_id[transcript_id]
-        exon_dict = {"start" : feature.iv.start,
-                     "end" : feature.iv.end,
-                     "strand" : feature.iv.strand,
-                     "num" : feature.attr["exon_number"]}
+        transcript = transcripts_by_id.get(transcript_id)
+        if transcript is None:
+            transcript = {"features_by_type" : defaultdict(list),
+                          "biotype" : set(),
+                          "chrom" : feature.iv.chrom,
+                          "start" : feature.iv.start,
+                          "end" : feature.iv.end,
+                          "strand" : feature.iv.strand,}
+            transcripts_by_id[transcript_id] = transcript
+        else:
+            update_extents(transcript, feature)
+        
+        feature_dict = {"start" : feature.iv.start,
+                        "end" : feature.iv.end,
+                        "strand" : feature.iv.strand,
+                        "num" : feature.attr["exon_number"]}
     
-        transcript["features_by_type"][feature.type].append(exon_dict)
+        transcript["features_by_type"][feature.type].append(feature_dict)
         biotype = feature.attr.get("gene_biotype")
         if biotype is None:
             biotype = get_biotype_from_transcript_id(transcript_id)
@@ -104,7 +112,7 @@ def main():
     genes_json_gz = name_from_file_name(gtf_file) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
         json_str = json.dumps(data, cls=SetEncoder)
-        outfile.write(json_str.encode('utf-8')) 
+        outfile.write(json_str.encode('ascii')) 
 
     print("Wrote:", genes_json_gz)
     

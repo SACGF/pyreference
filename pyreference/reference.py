@@ -6,8 +6,8 @@ import json
 from lazy import lazy
 import operator
 import os
+import six
 from pyfasta.fasta import Fasta
-from six import raise_from
 
 from pyreference.gene import Gene
 from pyreference.transcript import Transcript
@@ -19,7 +19,10 @@ from .pyreference_config import load_params_from_config
 def _load_gzip_json(gz_json_file_name):
     with gzip.open(gz_json_file_name) as f:
         json_bytes = f.read()
-        json_str = json_bytes.decode('utf-8') 
+        if six.PY2:
+            json_str = json_bytes
+        else:
+            json_str = json_bytes.decode('ascii')
         data = json.loads(json_str)
     return data
 
@@ -63,7 +66,7 @@ class Reference(object):
         # Need at least this
         if self._genes_json is None:
             if kwargs:
-                raise_from(ValueError("No 'genes_json' in passed kwargs"), config_exception)
+                six.raise_from(ValueError("No 'genes_json' in passed kwargs"), config_exception)
                 
             raise config_exception
 
