@@ -10,13 +10,15 @@ import os
 from pyfasta.fasta import Fasta
 import six
 
+from pyreference import settings
 from pyreference.gene import Gene
+from pyreference.mirna import MiRNA
+from pyreference.pyreference_config import load_params_from_config
+from pyreference.settings import BEST_REGION_TYPE_ORDER
 from pyreference.transcript import Transcript
 from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature, \
-    get_unique_features_from_genomic_array_of_sets_iv
+    get_unique_features_from_genomic_array_of_sets_iv, fasta_to_hash
 
-from pyreference.pyreference_config import load_params_from_config
-from pyreference import settings
 
 def _load_gzip_json(gz_json_file_name):
     with gzip.open(gz_json_file_name) as f:
@@ -38,7 +40,6 @@ def _load_gzip_json(gz_json_file_name):
         raise ValueError(msg)
       
     return data
-
 
 
 class Reference(object):
@@ -142,10 +143,6 @@ class Reference(object):
         return genes_by_biotype
 
 
-    @lazy
-    def regions(self):
-        return {}
-    
     def get_gene_by_id(self, gene_id):
         genes_by_id = self._genes_dict["genes_by_id"]
         gene_dict = genes_by_id.get(gene_id)
@@ -169,6 +166,21 @@ class Reference(object):
     @deprecated(reason="Use get_transcript_by_id")
     def get_transcript(self, transcript_id):
         return self.get_transcript_by_id(transcript_id)
+
+
+    @lazy
+    def mirna_mature(self):
+        '''Returns dict of { miRNA name: mature miR RNA sequence }'''
+        if not self._mature_mir_sequence_fasta:
+            msg = "Asked for miRNA mature sequence but not provided with a 'mature_mir_sequence_fasta' argument"
+            raise RuntimeError(msg)
+        return fasta_to_hash(self._mature_mir_sequence_fasta)
+
+    def get_mirna(self, mirna_name):
+        '''Returns an MiRNA class instance for the mirna_name'''
+        mirna = MiRNA(mirna_name, self.mirna_mature)
+        return mirna
+
 
     @lazy
     def genome(self):
@@ -237,6 +249,57 @@ class Reference(object):
         gene_names = self.get_gene_names_array(interval)
         return " ".join(gene_names)
 
+    ## Regions
+    @lazy
+    def regions(self):
+        regions = HTSeq.GenomicArray("auto", stranded=self.stranded, typecode='O')
+
+        # Make everything that has a gene in it be "intron"
+        for g in self.genes.values():
+            regions[g.iv] = "intron"
+
+        for t in self.transcripts.values():
+            if t.is_coding:
+                for utr in ["5PUTR", "3PUTR"]:
+                    for feature in t.get_features(utr):
+                        regions[feature.iv] = utr
+
+                for coding in t.get_features("CDS"):
+                    regions[coding.iv] = "coding"
+            else:
+                for feature in t.get_features("exon"):
+                    regions[feature.iv] = "non coding"
+                
+        return regions
+
+    
+    def get_regions_array(self, iv):
+        '''Returns: list of region types (str) in the interval'''
+        _ = self.transcripts
+        regions = []
+        for (_, region_name) in self.regions[iv].steps():
+            if region_name:
+                regions.append(region_name)
+        return regions
+    
+    def get_region_names(self, iv):
+        region_names = set(self.get_regions_array(iv))
+        return " ".join(region_names)
+
+    def get_best_region(self, iv):
+        ''' Returns "best" region - if multiple pick according to order of BEST_REGION_TYPE_ORDER '''
+
+        region_names = set(self.get_regions_array(iv))
+        region = None
+        for r in BEST_REGION_TYPE_ORDER:
+            if r in region_names:
+                region = r
+                break
+        return region
+
+    @deprecated(reason="Use get_best_region()")
+    def get_region(self, iv):
+        return self.get_best_region(iv)
 
 
     @lazy

@@ -7,8 +7,7 @@ import logging
 
 from pyreference.genomic_region import GenomicRegion
 from pyreference.settings import START, END, IS_CODING, CHROM, STRAND
-from pyreference.utils.genomics_utils import GenomicInterval_from_directional, \
-    last_base, dict_to_iv
+from pyreference.utils.genomics_utils import GenomicInterval_from_directional, dict_to_iv
 
 
 class NotOnTranscriptException(Exception):
@@ -25,6 +24,7 @@ class Transcript(GenomicRegion):
     def get_gene_id(self):
         return self.gene.get_id() 
 
+    @property
     def is_coding(self):
         return self._dict[IS_CODING]
 
@@ -80,23 +80,6 @@ class Transcript(GenomicRegion):
     def get_transcript_length(self):
         return self.length
 
-    def get_transcript_position(self, pos):
-        previous_exon_lengths = 0
-        for exon in self.get_features("exon"):
-            if exon.iv.contains(pos):
-                exon_pos = abs(pos.pos - exon.iv.start_d)
-                return previous_exon_lengths + exon_pos
-            else:
-                previous_exon_lengths += exon.iv.length
-
-        raise NotOnTranscriptException("Couldn't find %s in transcript %s exons" % (pos, self.get_id()))
-
-    def get_codon_position(self, feature_type):
-        # There could be 2 split across diff exons (aarrgh!) this is rare so do it twice and get the 1st one
-        codon_positions = [f.iv.start_d_as_pos for f in self.get_features(feature_type)]
-        return min([self.get_transcript_position(p) for p in codon_positions])
-    
-    
     def get_sequence_from_features(self, feature_type):
         features = self.get_features_in_stranded_order(feature_type)
         return self.reference.get_sequence_from_features(features)
@@ -176,42 +159,4 @@ class Transcript(GenomicRegion):
             previous_running_exon_length += exon.iv.length
 
         raise NotOnTranscriptException("%s didn't contain %s" % (self.get_id(), pos_on_transcript))
-
-
-    # TODO: Should I move the get_region_extents into get_transcript Position?
-    # advantage of get_extends is you pass in an interval so can use both sides
-    # (to know at least one side is touching exon)
-    def get_transcript_positions(self, iv):
-        if not self.is_coding:
-            raise NotOnTranscriptException(self.get_id() + " is non-coding")
-
-        (start, end) = self.get_first_and_last_genomic_position_on_transcript(iv)
-        if start is None or end is None:
-            raise NotOnTranscriptException("Could not determine exon region extents for", iv)
-
-        start_mpos   = self.get_transcript_position(start)
-        end_mpos     = self.get_transcript_position(end)
-        if self.iv.strand == '-':
-            (start_mpos, end_mpos)  = (end_mpos, start_mpos)
-        return (start_mpos, end_mpos)
-
-
-    def get_first_and_last_genomic_position_on_transcript(self, iv):
-        ''' returns lowest/greatest point on transcript that intersects with IV '''
-        region_intervals = []
-        for feature in self.get_features("exon"):
-            if iv.overlaps(feature.iv):
-                overlap_start = max(iv.start, feature.iv.start)
-                overlap_end = min(iv.end, feature.iv.end)
-
-                overlap_iv = HTSeq.GenomicInterval(iv.chrom, overlap_start, overlap_end, iv.strand)
-                region_intervals.append(overlap_iv)
-                
-        start = None
-        end = None
-        if len(region_intervals) > 0:
-            start = region_intervals[0].start_as_pos
-            end = last_base(region_intervals[-1])
-
-        return (start, end)
 

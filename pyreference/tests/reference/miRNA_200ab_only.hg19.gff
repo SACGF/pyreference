@@ -1,0 +1,20 @@
+##gff-version 3
+##date 2012-3-26
+#
+# Test file: only contains 200a/b
+# 
+# Chromosomal coordinates of Homo sapiens microRNAs
+# miRNA data:	miRBase (version 18)
+# Genome assembly: GRCh37
+#
+# Hairpin precursor sequences have type "miRNA_primary_transcript". 
+# Note, these sequences do not represent the full primary transcript, 
+# rather a predicted stem-loop portion that includes the precursor 
+# miRNA. Mature sequences have type "miRNA".
+#
+1	.	miRNA_primary_transcript	1102484	1102578	.	+	.	ID=MI0000342_1;accession_number=MI0000342;Name=hsa-mir-200b
+1	.	miRNA	1102504	1102525	.	+	.	ID=MIMAT0004571_1;accession_number=MIMAT0004571;Name=hsa-miR-200b-5p;derives_from=MI0000342_1
+1	.	miRNA	1102540	1102561	.	+	.	ID=MIMAT0000318_1;accession_number=MIMAT0000318;Name=hsa-miR-200b-3p;derives_from=MI0000342_1
+1	.	miRNA_primary_transcript	1103243	1103332	.	+	.	ID=MI0000737_1;accession_number=MI0000737;Name=hsa-mir-200a
+1	.	miRNA	1103258	1103279	.	+	.	ID=MIMAT0001620_1;accession_number=MIMAT0001620;Name=hsa-miR-200a-5p;derives_from=MI0000737_1
+1	.	miRNA	1103296	1103317	.	+	.	ID=MIMAT0000682_1;accession_number=MIMAT0000682;Name=hsa-miR-200a-3p;derives_from=MI0000737_1

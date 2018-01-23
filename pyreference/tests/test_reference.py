@@ -14,7 +14,6 @@ from os.path import abspath
 import unittest
 
 from pyreference import Reference
-from pyreference.utils.genomics_utils import last_base
 
 
 class Test(unittest.TestCase):
@@ -24,8 +23,11 @@ class Test(unittest.TestCase):
         
         genes_json = os.path.join(reference_dir, "hg19_chrY_300kb_genes.gtf.json.gz")
         genome_sequence_fasta = os.path.join(reference_dir, "hg19_chrY_300kb.fa")
+        mature_mir_sequence_fasta = os.path.join(reference_dir, "mature_200ab_only.fa")
+
         self.reference = Reference(genes_json=genes_json,
-                                   genome_sequence_fasta=genome_sequence_fasta)
+                                   genome_sequence_fasta=genome_sequence_fasta,
+                                   mature_mir_sequence_fasta=mature_mir_sequence_fasta)
 
     def tearDown(self):
         pass
@@ -70,79 +72,6 @@ class Test(unittest.TestCase):
             m_rna = transcript.get_transcript_sequence()
             self.assertTrue(m_rna.find(test["3p_utr"]) > 1)
 
-
-    def test_mrna_position(self):
-        transcript_id = "NR_028057_2"
-        start = 142990
-        transcript = self.reference.transcripts[transcript_id]
-
-        # Verify that -1 is not on transcript
-        try:
-            pos = HTSeq.GenomicPosition("chrY", start - 1)
-            mpos = transcript.get_transcript_position(pos)
-            self.assertTrue(False, "Shouldn't be here!")
-        except:
-            self.assertTrue(True)
-
-        for i in range(5):
-            pos = HTSeq.GenomicPosition("chrY", start + i)
-            mpos = transcript.get_transcript_position(pos)
-            self.assertEquals(i, mpos)
-
-        # 1st exon length 71 chrs
-        exons = transcript.get_features("exon")
-        offset = 0
-        for e in exons:
-            pos = e.iv.start_d_as_pos
-            mpos = transcript.get_transcript_position(pos)
-            self.assertEquals(offset, mpos, "Exon start position in transcript = sum of previous exons")
-            offset += e.iv.length
-
-    def test_mrna_position2(self):
-        transcript_id = "NM_018390_2"
-        transcript = self.reference.transcripts[transcript_id]
-
-        # Start Codon
-        start_codon = transcript.get_features("start_codon")[0]
-        mpos = transcript.get_transcript_position(start_codon.iv.start_d_as_pos)
-        fiveputr_len = len(transcript.get_5putr_sequence())
-        self.assertEquals(mpos, fiveputr_len)
-
-        mpos = transcript.get_transcript_position(last_base(transcript.iv))
-        self.assertEquals(mpos, len(transcript.get_transcript_sequence())-1)
-
-
-    def test_get_feature_extents(self):
-        transcript_id = "NR_028057_2"
-        transcript = self.reference.transcripts[transcript_id]
-
-        exon1 = transcript.get_features("exon")[0].iv
-        exon_intron_span = exon1.copy()
-        exon_intron_span.length += 20
-
-        (start, end) = transcript.get_first_and_last_genomic_position_on_transcript(exon_intron_span)
-        self.assertTrue(exon1.contains(start))
-        self.assertTrue(exon1.contains(end))
-
-        self.assertEquals(start, exon1.start_as_pos)
-        self.assertEquals(end, last_base(exon1))
-
-        # Test smaller extent
-        exon_sub_span = exon1.copy()
-        exon_sub_span.length = 10
-        (start, end) = transcript.get_first_and_last_genomic_position_on_transcript(exon_sub_span)
-        self.assertTrue(exon_sub_span.contains(start))
-        self.assertTrue(exon_sub_span.contains(end))
-        
-        self.assertEquals(start, exon_sub_span.start_as_pos)
-        self.assertEquals(end, last_base(exon_sub_span))
-
-        # Test intron...
-        intron = HTSeq.GenomicInterval("chrY", 144043, 144218, '+')
-        (start, end) = transcript.get_first_and_last_genomic_position_on_transcript(intron)
-        self.assertEqual(start, None)
-        self.assertEqual(end, None)
-
     def test_get_transcript_length(self):
         transcript_id = "NM_018390_2"
         transcript = self.reference.transcripts[transcript_id]
@@ -175,9 +104,6 @@ class Test(unittest.TestCase):
             self.assertEqual(expected_promoter_sequence, promoter_sequence, "%s strand promoter sequence" % transcript.iv.strand)
 
     def test_get_gene_names(self):
-        t = self.reference.get_transcript_by_id("NR_028057_2")
-        print("%s is_coding: %s" % (t, t.is_coding))
-        
         intron = HTSeq.GenomicInterval("chrY", 144043, 144218, '+')
         gene_name = self.reference.get_gene_names(intron)
         self.assertEquals("PLCXD1", gene_name)

@@ -3,6 +3,7 @@ Created on 22Jan.,2018
 
 @author: dlawrence
 '''
+from Bio import SeqIO
 import HTSeq
 
 from pyreference.settings import CHROM, START, END, STRAND
@@ -87,3 +88,11 @@ def format_chrom(chrom, want_chr):
             return "chr%s" % chrom
     else:
         return chrom.replace("chr", "")
+
+
+def fasta_to_hash(fasta):
+    indexed_fasta = {}
+    for record in SeqIO.parse(fasta, "fasta"):
+        indexed_fasta[record.id] = str(record.seq)
+    return indexed_fasta
+
