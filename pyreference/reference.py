@@ -221,20 +221,6 @@ class Reference(object):
 
         return transcripts_gas
 
-        
-    def get_longest_coding_transcript(self, g_pos):
-        '''returns longest coding transcript overlapping a genomic position'''
-        longest_coding_transcript = None
-        transcript_is_better = lambda t : t.iv.length > longest_coding_transcript.iv.length
-
-        for transcript in self.genomic_transcripts[g_pos]:
-            if transcript.is_coding:
-                for feature in transcript.get_features("exon"):
-                    if feature.iv.contains(g_pos):
-                        if longest_coding_transcript is None or transcript_is_better(transcript):
-                            longest_coding_transcript = transcript
-        return longest_coding_transcript
-
     def get_transcripts_in_iv(self, iv):
         '''Returns: list of transcripts in genomic interval'''
         transcripts = get_unique_features_from_genomic_array_of_sets_iv(self.genomic_transcripts, iv)

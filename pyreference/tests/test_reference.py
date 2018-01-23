@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+
 '''
 Unit tests for sacgf.genomics.reference.Reference
 
@@ -173,6 +175,9 @@ class Test(unittest.TestCase):
             self.assertEqual(expected_promoter_sequence, promoter_sequence, "%s strand promoter sequence" % transcript.iv.strand)
 
     def test_get_gene_names(self):
+        t = self.reference.get_transcript_by_id("NR_028057_2")
+        print("%s is_coding: %s" % (t, t.is_coding))
+        
         intron = HTSeq.GenomicInterval("chrY", 144043, 144218, '+')
         gene_name = self.reference.get_gene_names(intron)
         self.assertEquals("PLCXD1", gene_name)
@@ -190,17 +195,6 @@ class Test(unittest.TestCase):
         message = "plcxd1 gene contains transcripts %s" % expected_transcripts
         for et_id in expected_transcripts:
             self.assertIn(et_id, plcxd1_transcript_ids, message)
-
-    def test_get_longest_coding_transcript(self):
-        g_pos = HTSeq.GenomicPosition("chrY", 159807, "+")
-        longest_coding_transcript = self.reference.get_longest_coding_transcript(g_pos)
-        self.assertEquals(longest_coding_transcript.get_id(), "NM_018390_2")
-        self.assertTrue(longest_coding_transcript.is_coding)
-
-    def test_get_longest_coding_transcript_intergenic(self):
-        g_pos = HTSeq.GenomicPosition("chrY", 159426, "+")
-        longest_coding_transcript = self.reference.get_longest_coding_transcript(g_pos)
-        self.assertIsNone(longest_coding_transcript, "intergenic returned no coding transcripts")
 
     def test_has_chrom(self):
         self.assertTrue(self.reference.has_chr)
