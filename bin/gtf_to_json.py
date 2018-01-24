@@ -13,12 +13,6 @@ from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, CODING_FE
 from pyreference.utils.file_utils import name_from_file_name
 
 
-try:
-    from pathlib import Path
-except (ImportError,AttributeError):
-    from pathlib2 import Path
-
-
 class SetEncoder(json.JSONEncoder):
     ''' Dump set as list, from: https://stackoverflow.com/a/8230505/295724 '''
     def default(self, obj):
@@ -131,8 +125,7 @@ def main():
 
         # No need to store chrom/strand for each feature, will use transcript         
         feature_dict = {START : feature.iv.start,
-                        END : feature.iv.end,
-                        "num" : feature.attr["exon_number"]}
+                        END : feature.iv.end,}
     
         transcript["features_by_type"][feature.type].append(feature_dict)
         if feature.type in CODING_FEATURES:

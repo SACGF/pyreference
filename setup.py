@@ -1,7 +1,9 @@
 from distutils.core import setup
+from setuptools import find_packages
+
 
 setup(name = 'pyreference',
-      packages = ['pyreference'], # this must be the same as the name above
+      packages = find_packages(),
       version = '0.1',
       description = 'Library for working with reference genomes',
       author = 'David Lawrence',
@@ -10,7 +12,12 @@ setup(name = 'pyreference',
       keywords = ['genomics', 'gtf', 'gff', 'genome', 'genes'],
       classifiers = [],
       install_requires=[
-          'configargparse',
+        'biopython',
+        'configargparse',
+        'deprecated',
+        'HTSeq',
+        'lazy',
+        'pyfasta',
       ],
-      python_requires='>=2.7, >3.4')
+      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*')
 

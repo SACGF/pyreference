@@ -43,20 +43,19 @@ def _load_gzip_json(gz_json_file_name):
 
 
 class Reference(object):
-    def __init__(self, build=None,
-                 pyreference_cfg=None,
-                 **kwargs):
+    def __init__(self, build=None, config=None, **kwargs):
         ''' Construct a new reference object via:
         
-            build - from pyreference config file (default if not specified) 
-            pyreference_cfg - config file, ~/pyreference.cfg if not specified
+            build - from pyreference config file (defaults to [global] default_build from config file) 
+            config - config file (defaults to ~/pyreference.cfg)
             
             OR pass in the file names:
             
             genes_json
             trna_json
-            mature_mir_sequence_fasta
             genome_sequence_fasta
+            mature_mir_sequence_fasta
+            
             
             Any passed parameters will overwrite those from the config file 
             
@@ -64,27 +63,31 @@ class Reference(object):
             
             '''
 
+        print("build=%s, config=%s, kwargs=%s" % (build, config, kwargs))
+
         # May not need to have config file if they passed in params 
         config_exception = None
         try:
-            params = load_params_from_config(build=build, pyreference_cfg=pyreference_cfg)
+            params = load_params_from_config(build=build, config=config)
         except Exception as e:
             config_exception = e
             params = {}
 
-        # Set / Overwrite with kwargs
-        params.update(kwargs)
+        print("params=%s" % params)
+
+
+        # Set / Overwrite with non-null kwargs
+        params.update({k : v for (k,v) in kwargs.items() if v is not None})
         self._genes_json = params.get("genes_json")
         self._trna_json = params.get("trna_json")
-        self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta") 
         self._genome_sequence_fasta = params.get("genome_sequence_fasta")
+        self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta") 
         self.stranded = kwargs.get("stranded", True)
 
         # Need at least this
         if self._genes_json is None:
             if kwargs:
                 six.raise_from(ValueError("No 'genes_json' in passed kwargs"), config_exception)
-                
             raise config_exception
 
 
@@ -146,20 +149,29 @@ class Reference(object):
     def get_gene_by_id(self, gene_id):
         genes_by_id = self._genes_dict["genes_by_id"]
         gene_dict = genes_by_id.get(gene_id)
+        if gene_dict is None:
+            msg = "No Gene found with ID=%s" % gene_id
+            raise ValueError(msg)
         return Gene(self, gene_id, gene_dict)     
 
     def get_transcript_by_id(self, transcript_id):
         transcript_dict = self.get_transcript_dict(transcript_id)
+        if transcript_dict is None:
+            msg = "No Transcript found with ID=%s" % transcript_dict
+            raise ValueError(msg)
         return Transcript(self, transcript_id, transcript_dict)
 
 
     def get_gene_by_name(self, gene_name):
         gene_id_by_name = self._genes_dict["gene_id_by_name"]
-        gene_id = gene_id_by_name[gene_name]
+        gene_id = gene_id_by_name.get(gene_name)
+        if gene_id is None:
+            msg = "No Gene found with Name=%s" % gene_name
+            raise ValueError(msg)
         return self.get_gene_by_id(gene_id)
     
     
-    @deprecated(reason="Use gene_gene_by_id")
+    @deprecated(reason="Use get_gene_by_id")
     def get_gene(self, gene_id):
         return self.get_gene_by_id(gene_id)
 

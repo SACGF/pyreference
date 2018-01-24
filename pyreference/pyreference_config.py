@@ -12,17 +12,17 @@ from six.moves import configparser #@UnresolvedImport
 import sys
 
 
-def load_params_from_config(build=None, pyreference_cfg=None):
+def load_params_from_config(build=None, config=None):
     DEFAULT_PYREFERENCE_CFG = "~/pyreference.cfg"
     
-    if pyreference_cfg is None:
-        pyreference_cfg = os.path.expanduser(DEFAULT_PYREFERENCE_CFG)
-        if not os.path.exists(pyreference_cfg):
-            msg = "No default config file: '%s' found. Please create one or pass another with the 'pyreference_cfg' parameter." % pyreference_cfg
+    if config is None:
+        config = os.path.expanduser(DEFAULT_PYREFERENCE_CFG)
+        if not os.path.exists(config):
+            msg = "No default config file: '%s' found. Please create one or pass another with the 'pyreference_cfg' parameter." % config
             raise OSError(msg)
     else:
-        if not os.path.exists(pyreference_cfg):
-            msg = "Passed config file '%s' not found." % pyreference_cfg
+        if not os.path.exists(config):
+            msg = "Passed config file '%s' not found." % config
             raise OSError(msg)
 
     params = {}
@@ -33,7 +33,7 @@ def load_params_from_config(build=None, pyreference_cfg=None):
                     'mature_mir_sequence_fasta' : None,
                     'genome_sequence_fasta' : None,}
         cfg = configparser.SafeConfigParser(defaults=defaults)
-        cfg.read(pyreference_cfg)
+        cfg.read(config)
 
         if build is None:
             try:
@@ -45,7 +45,7 @@ def load_params_from_config(build=None, pyreference_cfg=None):
         for k in defaults.keys():
             params[k] = cfg.get(build, k)
     except:
-        msg ="Problem parsing config file '%s':" % pyreference_cfg
+        msg ="Problem parsing config file '%s':" % config
         traceback = sys.exc_info()[2]
         reraise(configparser.NoOptionError, msg, traceback)
     

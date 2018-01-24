@@ -1,5 +1,6 @@
 biopython
-HTSeq
-pyfasta
 configargparse
+deprecated
+HTSeq
 lazy
+pyfasta
