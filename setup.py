@@ -19,5 +19,6 @@ setup(name = 'pyreference',
         'lazy',
         'pyfasta',
       ],
-      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*')
+      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
+      scripts=['bin/pyreference_gtf_to_json.py'],)
 

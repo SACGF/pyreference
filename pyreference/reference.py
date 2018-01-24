@@ -36,7 +36,7 @@ def _load_gzip_json(gz_json_file_name):
                   "json_version" : pyreference_json_version,
                   "file_name" : gz_json_file_name}
         msg = "PyReference with %(version_key)s %(current_version)d attempted to load '%(file_name)s' with %(version_key)s: %(json_version)d.\n" % params
-        msg +=  "Please re-create with this version of gtf_to_json.py."
+        msg +=  "Please re-create with this version of pyreference_gtf_to_json.py."
         raise ValueError(msg)
       
     return data
@@ -63,8 +63,6 @@ class Reference(object):
             
             '''
 
-        print("build=%s, config=%s, kwargs=%s" % (build, config, kwargs))
-
         # May not need to have config file if they passed in params 
         config_exception = None
         try:
@@ -72,9 +70,6 @@ class Reference(object):
         except Exception as e:
             config_exception = e
             params = {}
-
-        print("params=%s" % params)
-
 
         # Set / Overwrite with non-null kwargs
         params.update({k : v for (k,v) in kwargs.items() if v is not None})
@@ -266,21 +261,26 @@ class Reference(object):
     def regions(self):
         regions = HTSeq.GenomicArray("auto", stranded=self.stranded, typecode='O')
 
-        # Make everything that has a gene in it be "intron"
-        for g in self.genes.values():
-            regions[g.iv] = "intron"
+        # GenomicArray can only store 1 region for an interval, so go through 
+        # and overwrite    
+        for t in six.itervalues(self.transcripts):
+            regions[t.iv] = "intron"
 
-        for t in self.transcripts.values():
+        for t in six.itervalues(self.transcripts):
+            if not t.is_coding:
+                for feature in t.get_features("exon"):
+                    regions[feature.iv] = "non coding"
+
+        for t in six.itervalues(self.transcripts):
             if t.is_coding:
                 for utr in ["5PUTR", "3PUTR"]:
                     for feature in t.get_features(utr):
                         regions[feature.iv] = utr
 
-                for coding in t.get_features("CDS"):
-                    regions[coding.iv] = "coding"
-            else:
-                for feature in t.get_features("exon"):
-                    regions[feature.iv] = "non coding"
+        for t in six.itervalues(self.transcripts):
+            if t.is_coding:
+                for feature in t.get_features("CDS"):
+                    regions[feature.iv] = "coding"
                 
         return regions
 

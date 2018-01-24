@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 from __future__ import print_function, absolute_import
 
@@ -6,11 +6,11 @@ import HTSeq
 from collections import defaultdict
 import gzip
 import json
-import sys
-
+import os
 from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, CODING_FEATURES, \
     PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
 from pyreference.utils.file_utils import name_from_file_name
+import sys
 
 
 class SetEncoder(json.JSONEncoder):
@@ -75,7 +75,8 @@ def add_UTR_features(transcripts_by_id, transcript_cds_by_id):
 
 def main():
     if len(sys.argv) != 2:
-        print(sys.stderr, "Usage: %s reference.gtf" % sys.argv[0])
+        script_name = os.path.basename(__file__)
+        print("Usage: %s reference.gtf" % script_name, file=sys.stderr)
         sys.exit(1)
     
     gtf_file = sys.argv[1]

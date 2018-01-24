@@ -1,14 +1,10 @@
 '''
+
+ACRF Cancer Genomics Facility
+
 Created on 23Jan.,2018
 
-@author: dlawrence
-'''
-
-'''
-
 @see http://www.mirbase.org/
-
-Created on Sep 6, 2012
 
 @author: dlawrence
 '''
