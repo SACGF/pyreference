@@ -25,6 +25,7 @@ def load_params_from_config(build=None, config=None):
             msg = "Passed config file '%s' not found." % config
             raise OSError(msg)
 
+    GLOBAL_FLAGS = ["use_gzip_open", "stranded"]
     params = {}
 
     try:
@@ -41,7 +42,13 @@ def load_params_from_config(build=None, config=None):
             except configparser.NoOptionError as noe:
                 msg = "No build parameter passed, and no default_build set in [global] section."
                 raise_from(configparser.NoOptionError(msg), noe)
-                
+
+        for f in GLOBAL_FLAGS:
+            try:
+                params[f] = cfg.getboolean("global", f)
+            except configparser.NoOptionError as noe:
+                pass
+        
         for k in defaults.keys():
             params[k] = cfg.get(build, k)
     except:

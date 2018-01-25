@@ -8,8 +8,6 @@ from lazy import lazy
 import operator
 import os
 from pyfasta.fasta import Fasta
-import six
-
 from pyreference import settings
 from pyreference.gene import Gene
 from pyreference.mirna import MiRNA
@@ -18,16 +16,37 @@ from pyreference.settings import BEST_REGION_TYPE_ORDER
 from pyreference.transcript import Transcript
 from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature, \
     get_unique_features_from_genomic_array_of_sets_iv, fasta_to_hash
+import six
+import sys
 
 
-def _load_gzip_json(gz_json_file_name):
-    with gzip.open(gz_json_file_name, "rb") as f:
-        json_bytes = f.read()
-        if six.PY2:
-            json_str = json_bytes
-        else:
-            json_str = json_bytes.decode('ascii')
-        data = json.loads(json_str)
+def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
+    decompress_in_memory = not use_gzip_open
+    if use_gzip_open:
+        try:
+            with gzip.open(gz_json_file_name, "rb") as f:
+                json_bytes = f.read()
+        except IOError as e:
+            # We sometimes get [Errno 5] Input/output error using CIFS (SMB)
+            print(e, file=sys.stderr)
+            if e.errno == 5:
+                decompress_in_memory = True
+
+    if decompress_in_memory:
+        with open(gz_json_file_name, "rb") as f:
+            gzip_bytes = f.read()
+            json_bytes = gzip.GzipFile(fileobj=six.StringIO(gzip_bytes)).read()
+            
+        if use_gzip_open:
+            msg = "gzip.open failed, successfully fell back on in-memory decompression\n"
+            msg += "Please set use_gzip_open=False in your settings to speed up load times."
+            print(msg, file=sys.stderr)
+
+    if six.PY2:
+        json_str = json_bytes
+    else:
+        json_str = json_bytes.decode('ascii')
+    data = json.loads(json_str)
         
     pyreference_json_version = data[settings.PYREFERENCE_JSON_VERSION_KEY]
     if settings.PYREFERENCE_JSON_VERSION != pyreference_json_version:
@@ -77,7 +96,8 @@ class Reference(object):
         self._trna_json = params.get("trna_json")
         self._genome_sequence_fasta = params.get("genome_sequence_fasta")
         self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta") 
-        self.stranded = kwargs.get("stranded", True)
+        self.use_gzip_open = params.get("use_gzip_open", True)
+        self.stranded = params.get("stranded", True)
 
         # Need at least this
         if self._genes_json is None:
@@ -88,7 +108,7 @@ class Reference(object):
 
     @lazy
     def _genes_dict(self):
-        return _load_gzip_json(self._genes_json)
+        return _load_gzip_json(self._genes_json, self.use_gzip_open)
 
     def get_transcript_dict(self, transcript_id):
         transcripts_by_id = self._genes_dict["transcripts_by_id"]

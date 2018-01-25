@@ -39,6 +39,7 @@ class Transcript(GenomicRegion):
 
     #@deprecated(reason="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
+        ''' returns list of HTSeq.GenomicFeature '''
         genomic_features = []
         for f in self.get_features_in_stranded_order(feature_type):
             iv = dict_to_iv(f)
