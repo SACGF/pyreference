@@ -86,7 +86,7 @@ class Reference(object):
         config_exception = None
         try:
             params = load_params_from_config(build=build, config=config)
-        except Exception as e:
+        except OSError as e:
             config_exception = e
             params = {}
 

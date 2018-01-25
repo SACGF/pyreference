@@ -28,32 +28,32 @@ def load_params_from_config(build=None, config=None):
     GLOBAL_FLAGS = ["use_gzip_open", "stranded"]
     params = {}
 
-    try:
-        defaults = {'genes_json' : None,
-                    'trna_json' : None,
-                    'mature_mir_sequence_fasta' : None,
-                    'genome_sequence_fasta' : None,}
-        cfg = configparser.SafeConfigParser(defaults=defaults)
-        cfg.read(config)
+    defaults = {'genes_json' : None,
+                'trna_json' : None,
+                'mature_mir_sequence_fasta' : None,
+                'genome_sequence_fasta' : None,}
+    cfg = configparser.SafeConfigParser(defaults=defaults)
+    cfg.read(config)
 
-        if build is None:
-            try:
-                build = cfg.get("global", "default_build")
-            except configparser.NoOptionError as noe:
-                msg = "No build parameter passed, and no default_build set in [global] section."
-                raise_from(configparser.NoOptionError(msg), noe)
+    if build is None:
+        try:
+            build = cfg.get("global", "default_build")
+        except configparser.NoOptionError as noe:
+            msg = "No build parameter passed, and no default_build set in [global] section of config file '%s'" % config
+            raise_from(configparser.NoOptionError(msg), noe)
 
-        for f in GLOBAL_FLAGS:
-            try:
-                params[f] = cfg.getboolean("global", f)
-            except configparser.NoOptionError as noe:
-                pass
-        
-        for k in defaults.keys():
-            params[k] = cfg.get(build, k)
-    except:
-        msg ="Problem parsing config file '%s':" % config
-        traceback = sys.exc_info()[2]
-        reraise(configparser.NoOptionError, msg, traceback)
+    if not cfg.has_section(build):
+        params = {"build" : build, "config" : config}
+        msg = "Build='%(build)s', no section [%(build)s] in config file '%(config)s" % params 
+        raise ValueError(msg)
+
+    for f in GLOBAL_FLAGS:
+        try:
+            params[f] = cfg.getboolean("global", f)
+        except configparser.NoOptionError as noe:
+            pass
+    
+    for k in defaults.keys():
+        params[k] = cfg.get(build, k)
     
     return params
