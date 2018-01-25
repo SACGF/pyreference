@@ -5,9 +5,9 @@ Created on 19Jan.,2018
 '''
 
 from lazy import lazy
-
 from pyreference.genomic_region import GenomicRegion
 from pyreference.transcript import Transcript
+import sys
 
 
 class Gene(GenomicRegion):
@@ -19,13 +19,6 @@ class Gene(GenomicRegion):
 
     def get_gene_name(self):
         return self._dict["name"]
-
-    @property
-    def biotype(self):
-        return '/'.join(sorted(self.get_biotypes()))
-
-    def get_biotypes(self):
-        return self._dict["biotype"]
 
     @lazy
     def transcripts(self):
@@ -45,7 +38,8 @@ class Gene(GenomicRegion):
 
     @lazy
     def representative_transcript(self):
-        ''' Returns longest coding transcript if gene is coding, otherwise longest transcript '''
+        ''' Returns longest coding transcript if gene is coding, otherwise longest transcript
+            Sort transcript ID alphabetically if equal length '''
         
         transcript = self.get_longest_coding_transcript()
         if transcript == None:
@@ -54,9 +48,6 @@ class Gene(GenomicRegion):
     
 
     def get_representative_transcript(self):
-        ''' Representative transcript = longest coding transcript if gene is coding, otherwise longest transcript
-            Returns one Transcript instance or None
-        '''
         return self.representative_transcript
         
 
@@ -67,8 +58,18 @@ class Gene(GenomicRegion):
     def get_longest_transcript(self, coding_only=False):
         transcripts = self.transcripts
         if coding_only:
-            transcripts = filter(transcripts, lambda t : t.is_coding)
-        return sorted(transcripts, key=lambda t : t.length, reversed=True)
+            transcripts = filter(lambda t : t.is_coding, transcripts)
+        
+        longest_transcript = None
+        if transcripts:
+            # We want the MAX length - and MIN ID, so sort by min but use maxint-length  
+            # We also want NM_007041 (len 2209) over NM_001001976 (len 2209)
+            # Which is annoyingly zero padded - so use smallest ID length, then only if equal do alpha sort 
+            def min_transcript_key(t):
+                (sys.maxint - t.length, len(t.get_id()), t.get_id())
+
+            longest_transcript = min(transcripts, key=min_transcript_key)
+        return longest_transcript
 
 
     def __repr__(self):

@@ -3,14 +3,13 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-from collections import defaultdict
+from argparse import ArgumentParser
+from collections import defaultdict, Counter
 import gzip
 import json
-import os
 from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, CODING_FEATURES, \
     PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
 from pyreference.utils.file_utils import name_from_file_name
-import sys
 
 
 class SetEncoder(json.JSONEncoder):
@@ -72,15 +71,14 @@ def add_UTR_features(transcripts_by_id, transcript_cds_by_id):
                                    END : exon_end} 
                     features_by_type[right].append(utr_feature)
 
+def handle_args():
+    parser = ArgumentParser(description='Build a json.gz file for pyreference')
+    parser.add_argument("--discard-contigs-with-underscores", action='store_true',  default=True)
+    parser.add_argument("gtf")
+    return parser.parse_args()
+
 
 def main():
-    if len(sys.argv) != 2:
-        script_name = os.path.basename(__file__)
-        print("Usage: %s reference.gtf" % script_name, file=sys.stderr)
-        sys.exit(1)
-    
-    gtf_file = sys.argv[1]
-    
     genes_by_id = {}
     transcripts_by_id = {}
     # Store CDS in separate dict as we don't need to write as JSON
@@ -88,8 +86,16 @@ def main():
     gene_id_by_name = {}
     gene_ids_by_biotype = defaultdict(set)
     
+    args = handle_args()
     
-    for feature in HTSeq.GFF_Reader(gtf_file):
+    discarded_contigs = Counter()
+    
+    for feature in HTSeq.GFF_Reader(args.gtf):
+        chrom = feature.iv.chrom
+        if args.discard_contigs_with_underscores and "_" in chrom:
+            discarded_contigs[chrom] += 1
+            continue
+        
         gene_id = feature.attr["gene_id"]
         
         gene_name = feature.attr["gene_name"]
@@ -157,12 +163,15 @@ def main():
             "gene_id_by_name" : gene_id_by_name,
             "gene_ids_by_biotype" : gene_ids_by_biotype,}
     
-    genes_json_gz = name_from_file_name(gtf_file) + ".json.gz"
+    genes_json_gz = name_from_file_name(args.gtf) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
         json_str = json.dumps(data, cls=SetEncoder)
         outfile.write(json_str.encode('ascii')) 
 
     print("Wrote:", genes_json_gz)
+    if discarded_contigs:
+        print("Discarded contigs: %s" % discarded_contigs)
+    
     
 if __name__ == '__main__':
     main()

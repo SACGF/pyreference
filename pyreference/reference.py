@@ -21,7 +21,7 @@ from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature, \
 
 
 def _load_gzip_json(gz_json_file_name):
-    with gzip.open(gz_json_file_name) as f:
+    with gzip.open(gz_json_file_name, "rb") as f:
         json_bytes = f.read()
         if six.PY2:
             json_str = json_bytes
@@ -166,11 +166,11 @@ class Reference(object):
         return self.get_gene_by_id(gene_id)
     
     
-    @deprecated(reason="Use get_gene_by_id")
+    #@deprecated(reason="Use get_gene_by_id")
     def get_gene(self, gene_id):
         return self.get_gene_by_id(gene_id)
 
-    @deprecated(reason="Use get_transcript_by_id")
+    #@deprecated(reason="Use get_transcript_by_id")
     def get_transcript(self, transcript_id):
         return self.get_transcript_by_id(transcript_id)
 

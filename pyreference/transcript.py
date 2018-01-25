@@ -1,9 +1,8 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-from deprecated import deprecated
+#from deprecated import deprecated
 from lazy import lazy
-import logging
 
 from pyreference.genomic_region import GenomicRegion
 from pyreference.settings import START, END, IS_CODING, CHROM, STRAND
@@ -76,7 +75,7 @@ class Transcript(GenomicRegion):
     def length(self):
         return self.get_features_length("exon")
     
-    @deprecated(reason="Use Transcript.length")
+    #@deprecated(reason="Use Transcript.length")
     def get_transcript_length(self):
         return self.length
 
@@ -86,6 +85,22 @@ class Transcript(GenomicRegion):
 
     def get_transcript_sequence(self):
         return self.get_sequence_from_features("exon")
+
+    @lazy
+    def exons(self):
+        ''' Returns list of exon features '''
+        return self.get_features("exon")
+    
+    @lazy
+    def threeputr(self):
+        ''' Returns the exon regions which contain 3'UTR as list of features '''
+        return self.get_features("3PUTR") 
+    
+    @lazy
+    def fiveputr(self):
+        ''' Returns the exon regions which contain 5'UTR as list of features '''
+        return self.get_features("5PUTR")
+
     
     def get_coding_sequence(self):
         ''' Warning: There are frame shift issues not handled here.
@@ -135,7 +150,7 @@ class Transcript(GenomicRegion):
         Arguments -- position relative to 5' end of transcript (int) 
         Returns -- position on chromosome (int)
         '''    
-        logging.debug("Searching %s for %d", self.get_id(), pos_on_transcript)
+        #logging.debug("Searching %s for %d", self.get_id(), pos_on_transcript)
         
         running_exon_length = 0
         previous_running_exon_length = 0
@@ -143,12 +158,12 @@ class Transcript(GenomicRegion):
         for exon in self.get_features("exon"):
             running_exon_length += exon.iv.length
             if pos_on_transcript < running_exon_length: #match start is in this exon
-                logging.debug("found the exon, %r running exon length is: %r", exon, running_exon_length)
-                logging.debug("previous_running_exon_length is %r:", previous_running_exon_length)
-                logging.debug("exon start_d and end_d are: %r, %r", exon.iv.start_d, exon.iv.end_d)
+                #logging.debug("found the exon, %r running exon length is: %r", exon, running_exon_length)
+                #logging.debug("previous_running_exon_length is %r:", previous_running_exon_length)
+                #logging.debug("exon start_d and end_d are: %r, %r", exon.iv.start_d, exon.iv.end_d)
                 genomic_pos_of_exon_start = exon.iv.start_d
                 pos_on_this_exon = pos_on_transcript - previous_running_exon_length
-                logging.debug("position on this exon is %r", pos_on_this_exon)
+                #logging.debug("position on this exon is %r", pos_on_this_exon)
                 if exon.iv.strand == '+':
                     genomic_position_of_match_start = genomic_pos_of_exon_start + pos_on_this_exon
                 elif exon.iv.strand == '-':

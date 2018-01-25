@@ -16,6 +16,13 @@ class GenomicRegion(object):
     
     def get_id(self):
         return self.accession_id
+
+    @property
+    def biotype(self):
+        return '/'.join(sorted(self.get_biotypes()))
+
+    def get_biotypes(self):
+        return self._dict["biotype"]
     
     @lazy
     def iv(self):
