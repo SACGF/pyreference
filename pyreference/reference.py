@@ -174,6 +174,21 @@ class Reference(object):
     def get_transcript(self, transcript_id):
         return self.get_transcript_by_id(transcript_id)
 
+    def __getitem__(self, gene_ids):
+        return self.get_genes_by_id(gene_ids)
+        
+    def get_genes_by_id(self, gene_ids):
+        genes_subset = []
+        for gene_id in gene_ids:
+            genes_subset.append(self.get_gene_by_id(gene_id))
+        return genes_subset
+    
+    def get_genes_by_name(self, gene_names):
+        genes_subset = []
+        for gene_name in gene_names:
+            genes_subset.append(self.get_gene_by_name(gene_name))
+        return genes_subset
+
 
     @lazy
     def mirna_mature(self):
@@ -313,11 +328,11 @@ class Reference(object):
     def get_region(self, iv):
         return self.get_best_region(iv)
 
-
     @lazy
     def has_chr(self):
         transcripts_by_id = self._genes_dict["transcripts_by_id"]
         some_transcript = six.next(six.itervalues(transcripts_by_id))
         chrom = some_transcript["chr"]
         return chrom.startswith("chr")
+
 

@@ -49,8 +49,6 @@ class GenomicRegion(object):
         iv = self.get_promoter_iv_custom_range(upstream_distance, downstream_distance)
         return self.reference.get_sequence_from_iv(iv)
 
-
-
     @abc.abstractmethod
     def get_representative_transcript(self):
         pass
