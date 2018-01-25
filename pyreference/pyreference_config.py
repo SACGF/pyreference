@@ -7,9 +7,8 @@ TODO: Link to wiki page about config file format
 '''
 
 import os
-from six import reraise, raise_from
+from six import raise_from
 from six.moves import configparser #@UnresolvedImport
-import sys
 
 
 def load_params_from_config(build=None, config=None):
