@@ -1,2 +1,4 @@
 *.py[cod]
 *~
+dist/*
+pyreference.egg-info/*
