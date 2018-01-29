@@ -1,8 +1,8 @@
 ## PyReference ##
 
-A Python library for working with reference genomes.
+A Python library for working with reference gene annotations.
 
-PyReference loads annotations extremely rapidly, and makes it easy to write code which can be run against different genomes.
+PyReference loads GTF annotations extremely rapidly, and makes it easy to write code which can be run against different genomes.
 
 ## Example ##
 
