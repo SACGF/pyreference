@@ -6,7 +6,7 @@ Created on 23Jan.,2018
 
 
 # Change this when you introduce breaking changes
-PYREFERENCE_JSON_VERSION = 4
+PYREFERENCE_JSON_VERSION = 5
 PYREFERENCE_JSON_VERSION_KEY = "pyreference_json_version"
 
 CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}

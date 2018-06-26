@@ -104,6 +104,11 @@ class Reference(object):
             if kwargs:
                 six.raise_from(ValueError("No 'genes_json' in passed kwargs"), config_exception)
             raise config_exception
+        
+        # Store this so we can ask about config later
+        self.build = params["build"]
+        self._args = {"build" : build, "config" : config}
+        self._build_params = params
 
 
     @lazy
@@ -281,7 +286,7 @@ class Reference(object):
         return list(transcripts)
 
     def get_transcript_ids(self, iv):
-        return [feature.name for feature in self.get_transcripts_in_iv(iv)]
+        return [feature.get_id() for feature in self.get_transcripts_in_iv(iv)]
 
     def get_gene_names_array(self, iv):
         return list(set([t.get_gene_id() for t in self.get_transcripts_in_iv(iv)]))
@@ -354,5 +359,16 @@ class Reference(object):
         some_transcript = six.next(six.itervalues(transcripts_by_id))
         chrom = some_transcript["chr"]
         return chrom.startswith("chr")
+
+    def __repr__(self):
+        return "PyReference (%s)" % self.build
+
+    @lazy
+    def config(self):
+        params = {"build" : self.build,
+                  "args" : self._args,
+                  "reference_gtf" : self._genes_dict["reference_gtf"],
+                  "build_params" : self._build_params.copy()}
+        return params
 
 

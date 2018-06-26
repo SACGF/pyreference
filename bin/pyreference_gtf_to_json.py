@@ -7,9 +7,10 @@ from argparse import ArgumentParser
 from collections import defaultdict, Counter
 import gzip
 import json
+import os
 from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, CODING_FEATURES, \
     PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
-from pyreference.utils.file_utils import name_from_file_name
+from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 
 
 class SetEncoder(json.JSONEncoder):
@@ -158,6 +159,8 @@ def main():
     add_UTR_features(transcripts_by_id, transcript_cds_by_id)
     
     data = {PYREFERENCE_JSON_VERSION_KEY : PYREFERENCE_JSON_VERSION,
+            "reference_gtf" : {"path" : os.path.abspath(args.gtf),
+                               "md5sum" : file_md5sum(args.gtf)},
             "genes_by_id" : genes_by_id,
             "transcripts_by_id" : transcripts_by_id,
             "gene_id_by_name" : gene_id_by_name,

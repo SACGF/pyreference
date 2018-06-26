@@ -30,7 +30,10 @@ class GenomicRegion(object):
 
     @lazy    
     def tss(self):
-        return self.iv.start_d_as_pos
+        ''' (Representative) Transcript Start Site
+            This is NOT the most 5' position (use iv.start_d_as_pos for that) '''
+        transcript_iv = self.get_representative_transcript().iv
+        return transcript_iv.start_d_as_pos
 
     def get_promoter_iv(self, promoter_range=1000):
         return iv_from_pos_range(self.tss, promoter_range)

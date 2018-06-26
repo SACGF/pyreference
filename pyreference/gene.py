@@ -66,7 +66,7 @@ class Gene(GenomicRegion):
             # We also want NM_007041 (len 2209) over NM_001001976 (len 2209)
             # Which is annoyingly zero padded - so use smallest ID length, then only if equal do alpha sort 
             def min_transcript_key(t):
-                (sys.maxint - t.length, len(t.get_id()), t.get_id())
+                return (sys.maxint - t.length, len(t.get_id()), t.get_id())
 
             longest_transcript = min(transcripts, key=min_transcript_key)
         return longest_transcript

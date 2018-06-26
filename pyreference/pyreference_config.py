@@ -42,8 +42,8 @@ def load_params_from_config(build=None, config=None):
             raise_from(configparser.NoOptionError(msg), noe)
 
     if not cfg.has_section(build):
-        params = {"build" : build, "config" : config}
-        msg = "Build='%(build)s', no section [%(build)s] in config file '%(config)s" % params 
+        msg_params = {"build" : build, "config" : config}
+        msg = "Build='%(build)s', no section [%(build)s] in config file '%(config)s" % msg_params 
         raise ValueError(msg)
 
     for f in GLOBAL_FLAGS:
@@ -51,6 +51,9 @@ def load_params_from_config(build=None, config=None):
             params[f] = cfg.getboolean("global", f)
         except configparser.NoOptionError as noe:
             pass
+    
+    params["build"] = build
+    params["config"] = config
     
     for k in defaults.keys():
         params[k] = cfg.get(build, k)

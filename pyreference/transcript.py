@@ -176,3 +176,6 @@ class Transcript(GenomicRegion):
 
         raise NotOnTranscriptException("%s didn't contain %s" % (self.get_id(), pos_on_transcript))
 
+    def __repr__(self):
+        coding_str = " (coding)" if self.is_coding else ""
+        return "Transcript %s%s: length %d" % (self.get_id(), coding_str, self.length)

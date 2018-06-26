@@ -3,6 +3,7 @@ Created on 22Jan.,2018
 
 @author: dlawrence
 '''
+from md5 import md5
 import os
 
 
@@ -34,3 +35,9 @@ def file_or_file_name(f, mode='r'):
         return f # Already a File object
     else:
         raise ValueError("'%s' (%s) not a file or string" % (f, type(f)))
+
+def file_md5sum(filename):
+    m = md5()
+    with open(filename, "rb") as f:
+        m.update(f.read())
+    return m.hexdigest()
