@@ -3,4 +3,4 @@ configargparse
 deprecation
 HTSeq
 lazy
-pyfasta
+pysam

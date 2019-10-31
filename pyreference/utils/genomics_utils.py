@@ -3,6 +3,9 @@ Created on 22Jan.,2018
 
 @author: dlawrence
 '''
+
+from Bio.Alphabet import DNAAlphabet
+from Bio.Seq import Seq
 from Bio import SeqIO
 import HTSeq
 
@@ -14,7 +17,7 @@ except (ImportError,AttributeError):
 from pyreference.settings import CHROM, START, END, STRAND
 
 
-def HTSeqInterval_to_pyfasta_feature(iv):
+def HTSeqInterval_to_feature_dict(iv):
     return {CHROM : iv.chrom, START : iv.start, END : iv.end, STRAND : iv.strand}
 
 def dict_to_iv(data):
@@ -101,3 +104,7 @@ def fasta_to_hash(fasta):
         indexed_fasta[record.id] = str(record.seq)
     return indexed_fasta
 
+
+def reverse_complement(dna_sequence):
+    seq = Seq(dna_sequence, DNAAlphabet())
+    return str(seq.reverse_complement())

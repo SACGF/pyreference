@@ -11,7 +11,7 @@ PYREFERENCE_JSON_VERSION_KEY = "pyreference_json_version"
 
 CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
 
-# We want our features to match PyFasta so they can be used without conversion
+# Keys used in dictionary (serialized to JSON)
 CHROM = "chr"
 START = "start"
 END = "stop"

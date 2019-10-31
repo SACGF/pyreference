@@ -1,22 +1,23 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-from functools import reduce
 from deprecation import deprecated
+from functools import reduce
 import gzip
 import json
 from lazy import lazy
 import operator
 import os
-from pyfasta.fasta import Fasta
 from pyreference import settings
 from pyreference.gene import Gene
 from pyreference.mirna import MiRNA
 from pyreference.pyreference_config import load_params_from_config
 from pyreference.settings import BEST_REGION_TYPE_ORDER
+from pyreference.settings import CHROM, START, END, STRAND
 from pyreference.transcript import Transcript
-from pyreference.utils.genomics_utils import HTSeqInterval_to_pyfasta_feature, \
-    get_unique_features_from_genomic_array_of_sets_iv, fasta_to_hash
+from pyreference.utils.genomics_utils import get_unique_features_from_genomic_array_of_sets_iv, fasta_to_hash, \
+    HTSeqInterval_to_feature_dict, reverse_complement
+from pysam import FastaFile  # @UnresolvedImport
 import six
 import sys
 
@@ -237,30 +238,36 @@ class Reference(object):
         if not os.path.exists(self._genome_sequence_fasta):
             raise IOError("Genome sequence file '%s' not found" % self.reference_fasta)
 
-        # @see: https://pypi.python.org/pypi/pyfasta
-        key_fn = lambda key : key.split()[0] # Use first value before whitespace as keys
-        return Fasta(self._genome_sequence_fasta, key_fn=key_fn)
+        return FastaFile(self._genome_sequence_fasta)
 
     def get_sequence_from_iv(self, iv, upper_case=True):
-        pyfasta_feature = HTSeqInterval_to_pyfasta_feature(iv)
-        return self.get_sequence_from_pyfasta_feature(pyfasta_feature, upper_case=upper_case)
+        feature_dict = HTSeqInterval_to_feature_dict(iv)
+        return self.get_sequence_from_feature(feature_dict, upper_case=upper_case)
         
 
-    def get_sequence_from_pyfasta_feature(self, pyfasta_feature, upper_case=True):
+    def get_sequence_from_feature(self, feature_dict, upper_case=True):
         '''Repetitive regions are sometimes represented as lower case.
             If upper_case=True, return the sequence as upper case (Default).
             If false, do not convert case, i.e retain lower case where it was present.'''
 
-        seq = self.genome.sequence(pyfasta_feature, one_based=False)
-        if upper_case:    
+        chrom = str(feature_dict[CHROM])
+        start = feature_dict[START]
+        end = feature_dict[END]
+        strand = str(feature_dict[STRAND])
+        seq = self.genome.fetch(reference=chrom,
+                                start=start,
+                                end=end)
+        if strand == '-':
+            seq = reverse_complement(seq)
+
+        if upper_case:
             seq = seq.upper()
         return seq
-
 
     def get_sequence_from_features(self, features):
         sequences = []
         for feature in features:
-            sequences.append(self.get_sequence_from_pyfasta_feature(feature))
+            sequences.append(self.get_sequence_from_feature(feature))
 
         if sequences:
             sequence = reduce(operator.add, sequences)

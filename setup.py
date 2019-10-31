@@ -17,7 +17,7 @@ setup(name = 'pyreference',
         'deprecation',
         'HTSeq',
         'lazy',
-        'pyfasta',
+        'pysam',
       ],
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
       scripts=['bin/pyreference_gtf_to_json.py'],)
