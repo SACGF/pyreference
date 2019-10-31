@@ -1,7 +1,8 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-from deprecated import deprecated
+from functools import reduce
+from deprecation import deprecated
 import gzip
 import json
 from lazy import lazy
@@ -88,7 +89,7 @@ class Reference(object):
             params = load_params_from_config(build=build, config=config)
         except OSError as e:
             config_exception = e
-            params = {}
+            params = {"build" : build}
 
         # Set / Overwrite with non-null kwargs
         params.update({k : v for (k,v) in kwargs.items() if v is not None})
@@ -191,11 +192,11 @@ class Reference(object):
         return self.get_gene_by_id(gene_id)
     
     
-    #@deprecated(reason="Use get_gene_by_id")
+    #@deprecated(details="Use get_gene_by_id")
     def get_gene(self, gene_id):
         return self.get_gene_by_id(gene_id)
 
-    #@deprecated(reason="Use get_transcript_by_id")
+    #@deprecated(details="Use get_transcript_by_id")
     def get_transcript(self, transcript_id):
         return self.get_transcript_by_id(transcript_id)
 
@@ -349,7 +350,7 @@ class Reference(object):
                 break
         return region
 
-    @deprecated(reason="Use get_best_region()")
+    @deprecated(details="Use get_best_region()")
     def get_region(self, iv):
         return self.get_best_region(iv)
 

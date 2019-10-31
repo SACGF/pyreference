@@ -1,7 +1,7 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-#from deprecated import deprecated
+#from from deprecation import deprecated
 from lazy import lazy
 
 from pyreference.genomic_region import GenomicRegion
@@ -37,7 +37,7 @@ class Transcript(GenomicRegion):
             length += feature[END] - feature[START] 
         return length
 
-    #@deprecated(reason="Use get_features_in_stranded_order")
+    #@deprecated(details="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
         ''' returns list of HTSeq.GenomicFeature '''
         genomic_features = []
@@ -76,7 +76,7 @@ class Transcript(GenomicRegion):
     def length(self):
         return self.get_features_length("exon")
     
-    #@deprecated(reason="Use Transcript.length")
+    #@deprecated(details="Use Transcript.length")
     def get_transcript_length(self):
         return self.length
 

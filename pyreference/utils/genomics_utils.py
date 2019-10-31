@@ -6,6 +6,11 @@ Created on 22Jan.,2018
 from Bio import SeqIO
 import HTSeq
 
+try:
+    from sys import intern
+except (ImportError,AttributeError):
+    pass
+    
 from pyreference.settings import CHROM, START, END, STRAND
 
 

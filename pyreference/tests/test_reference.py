@@ -65,7 +65,7 @@ class Test(unittest.TestCase):
                                      "3p_utr"          : "CGCCGCCCGC" },
         }
 
-        for test in test_cases.itervalues():
+        for test in six.itervalues(test_cases):
             transcript = self.reference.transcripts[test["transcript_id"]]
 
             utr = str(transcript.get_3putr_sequence()).upper()

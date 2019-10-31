@@ -3,14 +3,15 @@ Created on 22Jan.,2018
 
 @author: dlawrence
 '''
-from md5 import md5
+from hashlib import md5
 import os
+import six
 
 
 try:
-    from pathlib import Path
+    from pathlib import Path #@UnresolvedImport
 except (ImportError,AttributeError):
-    from pathlib2 import Path
+    from pathlib2 import Path #@UnresolvedImport
 
 def name_from_file_name(file_name):
     return Path(file_name).name
@@ -26,12 +27,12 @@ def mk_path_for_file(f):
     mk_path(os.path.dirname(f))
     
 def file_or_file_name(f, mode='r'):
-    if isinstance(f, basestring): # Works on unicode
+    if isinstance(f, six.string_types):
         if 'w' in mode: # Create path if writing
             mk_path_for_file(f)
             
         return open(f, mode)
-    elif isinstance(f, file):
+    elif hasattr(f, 'read'):
         return f # Already a File object
     else:
         raise ValueError("'%s' (%s) not a file or string" % (f, type(f)))

@@ -1,6 +1,6 @@
 biopython
 configargparse
-deprecated
+deprecation
 HTSeq
 lazy
 pyfasta

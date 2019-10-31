@@ -4,7 +4,7 @@ from setuptools import find_packages
 
 setup(name = 'pyreference',
       packages = find_packages(),
-      version = '0.3',
+      version = '0.4',
       description = 'Library for working with reference genomes',
       author = 'David Lawrence',
       author_email = 'davmlaw@gmail.com',
@@ -14,7 +14,7 @@ setup(name = 'pyreference',
       install_requires=[
         'biopython',
         'configargparse',
-        'deprecated',
+        'deprecation',
         'HTSeq',
         'lazy',
         'pyfasta',
