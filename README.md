@@ -6,6 +6,7 @@ PyReference loads GTF annotations extremely rapidly, and makes it easy to write 
 
 ## Example ##
 
+    import numpy as np
     import pyreference
 	
 	reference = pyreference.Reference()
