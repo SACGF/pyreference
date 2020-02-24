@@ -1,8 +1,8 @@
-'''
+"""
 Created on 22Jan.,2018
 
 @author: dlawrence
-'''
+"""
 
 from Bio.Alphabet import DNAAlphabet
 from Bio.Seq import Seq
@@ -29,14 +29,14 @@ def dict_to_iv(data):
 
 
 def iv_from_pos_range(g_pos, range_length):
-    '''p = Genomic position. 
-    Returns iv 'range_length' bp upstream and 'range_length' downstream of position p'''
+    """p = Genomic position.
+    Returns iv 'range_length' bp upstream and 'range_length' downstream of position p"""
     return HTSeq.GenomicInterval( g_pos.chrom, g_pos.pos - range_length, g_pos.pos + range_length, g_pos.strand)
 
 def iv_from_pos_directional_before_after(g_pos, upstream_length, downstream_length):
-    '''Note: The g_pos base is assumed to be included in downstream_length
+    """Note: The g_pos base is assumed to be included in downstream_length
     e.g upstream_length=100, downstream_length=100 has total length=200 bp
-    Check that this function does what you're expecting - setting upstream length to 0 will change the position of start_d on neg strand...'''
+    Check that this function does what you're expecting - setting upstream length to 0 will change the position of start_d on neg strand..."""
     if g_pos.strand == '+':
         start = g_pos.pos - upstream_length
         end = g_pos.pos + downstream_length
@@ -49,8 +49,8 @@ def iv_from_pos_directional_before_after(g_pos, upstream_length, downstream_leng
     return HTSeq.GenomicInterval( g_pos.chrom, start, end, g_pos.strand)
 
 def GenomicInterval_from_directional( chrom, start_d, length, strand="." ):
-    ''' Fix bug in HTSeq:
-        HTSeq.GenomicInterval_from_directional throws 'str' object has no attribute 'se' '''
+    """ Fix bug in HTSeq:
+        HTSeq.GenomicInterval_from_directional throws 'str' object has no attribute 'se' """
     strand = intern( strand )
     if strand != "-":
         return HTSeq.GenomicInterval( chrom, start_d, start_d+length, strand )
@@ -59,7 +59,7 @@ def GenomicInterval_from_directional( chrom, start_d, length, strand="." ):
 
 
 def get_unique_features_from_genomic_array_of_sets_iv(genomic_array_of_sets, iv):
-    '''Collapse genomic array of sets into a unique list of the values in that region'''
+    """Collapse genomic array of sets into a unique list of the values in that region"""
     all_values = set()
     for iv, values_in_iv in genomic_array_of_sets[iv].steps():
         all_values.update(values_in_iv)
@@ -84,11 +84,11 @@ def opposite_strand(strand):
 
 
 def format_chrom(chrom, want_chr):
-    ''' Pass in a chromosome (unknown format), return in your format
+    """ Pass in a chromosome (unknown format), return in your format
         @param chrom: chromosome ID (eg 1 or 'chr1')
         @param want_chr: Boolean - whether you want "chr" at the beginning of chrom
         @return: "chr1" or "1" (for want_chr True/False) 
-    '''
+    """
     if want_chr:   
         if chrom.startswith("chr"):
             return chrom

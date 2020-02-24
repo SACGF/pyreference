@@ -1,8 +1,8 @@
-'''
+"""
 Created on 24Jan.,2018
 
 @author: dlawrence
-'''
+"""
 import configargparse
 from pyreference import Reference
 
@@ -22,7 +22,7 @@ class ReferenceArgumentParser(configargparse.ArgumentParser):
 
 
     def parse_args(self):
-        ''' get args from command line, adding 'reference' field set to PyReference instance '''
+        """ get args from command line, adding 'reference' field set to PyReference instance """
         args = super(ReferenceArgumentParser, self).parse_args()
         args.reference = Reference(**args.__dict__)
         return args

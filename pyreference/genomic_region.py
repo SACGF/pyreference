@@ -8,7 +8,7 @@ from pyreference.utils.genomics_utils import iv_from_pos_range, \
 
 
 class GenomicRegion(object):
-    ''' Base class for both Gene and Transcript '''
+    """ Base class for both Gene and Transcript """
     def __init__(self, reference, accession_id, data_dict):
         self.reference = reference
         self.accession_id = accession_id
@@ -30,8 +30,8 @@ class GenomicRegion(object):
 
     @lazy    
     def tss(self):
-        ''' (Representative) Transcript Start Site
-            This is NOT the most 5' position (use iv.start_d_as_pos for that) '''
+        """ (Representative) Transcript Start Site
+            This is NOT the most 5' position (use iv.start_d_as_pos for that) """
         transcript_iv = self.get_representative_transcript().iv
         return transcript_iv.start_d_as_pos
 
@@ -44,8 +44,8 @@ class GenomicRegion(object):
 
 
     def get_promoter_iv_custom_range(self, upstream_distance, downstream_distance):
-        '''Get any interval surrounding TSS
-        Note: total length of interval = upstream_distance + downstream_distance (The TSS base is included in downstream_distance)'''
+        """Get any interval surrounding TSS
+        Note: total length of interval = upstream_distance + downstream_distance (The TSS base is included in downstream_distance)"""
         return iv_from_pos_directional_before_after(self.tss, upstream_distance, downstream_distance)
     
     def get_promoter_sequence_custom_range(self, upstream_distance, downstream_distance):

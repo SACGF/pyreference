@@ -10,7 +10,7 @@ from pyreference.utils.genomics_utils import GenomicInterval_from_directional, d
 
 
 class NotOnTranscriptException(Exception):
-    ''' For when a transcription position is not on a transcript '''
+    """ For when a transcription position is not on a transcript """
     pass
 
 
@@ -39,7 +39,7 @@ class Transcript(GenomicRegion):
 
     #@deprecated(details="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
-        ''' returns list of HTSeq.GenomicFeature '''
+        """ returns list of HTSeq.GenomicFeature """
         genomic_features = []
         for f in self.get_features_in_stranded_order(feature_type):
             iv = dict_to_iv(f)
@@ -50,7 +50,7 @@ class Transcript(GenomicRegion):
 
 
     def get_features_in_stranded_order(self, feature_type):
-        '''features returned sorted 5' -> 3' '''
+        """features returned sorted 5' -> 3' """
 
         is_reversed = self._dict["strand"] == '-'
         if is_reversed:
@@ -89,23 +89,23 @@ class Transcript(GenomicRegion):
 
     @lazy
     def exons(self):
-        ''' Returns list of exon features '''
+        """ Returns list of exon features """
         return self.get_features("exon")
     
     @lazy
     def threeputr(self):
-        ''' Returns the exon regions which contain 3'UTR as list of features '''
+        """ Returns the exon regions which contain 3'UTR as list of features """
         return self.get_features("3PUTR") 
     
     @lazy
     def fiveputr(self):
-        ''' Returns the exon regions which contain 5'UTR as list of features '''
+        """ Returns the exon regions which contain 5'UTR as list of features """
         return self.get_features("5PUTR")
 
     
     def get_coding_sequence(self):
-        ''' Warning: There are frame shift issues not handled here.
-            Do not naively turn this into a protein - better to use existing databases '''
+        """ Warning: There are frame shift issues not handled here.
+            Do not naively turn this into a protein - better to use existing databases """
         return self.get_sequence_from_features("CDS")
 
     def get_5putr_sequence(self):
@@ -115,10 +115,10 @@ class Transcript(GenomicRegion):
         return self.get_sequence_from_features("3PUTR")
 
     def get_intron_ivs(self):
-        '''
+        """
         Purpose: Get list of intron intervals for the the transcript
         Output: A list of HTSeq Genomic Interval instances for all introns in the transcript (ordered according to strand)
-        '''
+        """
         intron_ivs = []
         previous_exon = None
         for exon in self.get_features("exon"): # This is in stranded order
@@ -134,10 +134,10 @@ class Transcript(GenomicRegion):
         return intron_ivs
     
     def get_intron_sequences(self):
-        '''
+        """
         Get list of intron sequences for transcript
         Output: List of sequences (intron order and sequences are 5' to 3')
-        '''
+        """
         list_of_intron_intervals = self.get_intron_ivs()
         intron_sequences = []
         for intron in list_of_intron_intervals:
@@ -146,11 +146,11 @@ class Transcript(GenomicRegion):
     
     
     def get_genomic_position(self, pos_on_transcript):
-        '''
+        """
         Converts 0-based position on a transcript into 0-based position on the chromosome
         Arguments -- position relative to 5' end of transcript (int) 
         Returns -- position on chromosome (int)
-        '''    
+        """
         #logging.debug("Searching %s for %d", self.get_id(), pos_on_transcript)
         
         running_exon_length = 0

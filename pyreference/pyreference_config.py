@@ -1,19 +1,24 @@
-'''
+"""
 Created on 22Jan.,2018
 
 TODO: Link to wiki page about config file format
 
 @author: dlawrence
-'''
+"""
 
 import os
 from six import raise_from
-from six.moves import configparser #@UnresolvedImport
+from six.moves import configparser  # @UnresolvedImport
+
+try:
+    from ConfigParser import SafeConfigParser as ConfigParser
+except ImportError:
+    from configparser import ConfigParser
 
 
 def load_params_from_config(build=None, config=None):
     DEFAULT_PYREFERENCE_CFG = "~/pyreference.cfg"
-    
+
     if config is None:
         config = os.path.expanduser(DEFAULT_PYREFERENCE_CFG)
         if not os.path.exists(config):
@@ -27,11 +32,11 @@ def load_params_from_config(build=None, config=None):
     GLOBAL_FLAGS = ["use_gzip_open", "stranded"]
     params = {}
 
-    defaults = {'genes_json' : None,
-                'trna_json' : None,
-                'mature_mir_sequence_fasta' : None,
-                'genome_sequence_fasta' : None,}
-    cfg = configparser.SafeConfigParser(defaults=defaults)
+    defaults = {'genes_json': None,
+                'trna_json': None,
+                'mature_mir_sequence_fasta': None,
+                'genome_sequence_fasta': None, }
+    cfg = ConfigParser(allow_no_value=True, defaults=defaults)
     cfg.read(config)
 
     if build is None:
@@ -42,8 +47,8 @@ def load_params_from_config(build=None, config=None):
             raise_from(configparser.NoOptionError(msg), noe)
 
     if not cfg.has_section(build):
-        msg_params = {"build" : build, "config" : config}
-        msg = "Build='%(build)s', no section [%(build)s] in config file '%(config)s" % msg_params 
+        msg_params = {"build": build, "config": config}
+        msg = "Build='%(build)s', no section [%(build)s] in config file '%(config)s" % msg_params
         raise ValueError(msg)
 
     for f in GLOBAL_FLAGS:
@@ -51,11 +56,11 @@ def load_params_from_config(build=None, config=None):
             params[f] = cfg.getboolean("global", f)
         except configparser.NoOptionError as noe:
             pass
-    
+
     params["build"] = build
     params["config"] = config
-    
+
     for k in defaults.keys():
         params[k] = cfg.get(build, k)
-    
+
     return params

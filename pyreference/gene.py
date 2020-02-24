@@ -1,8 +1,8 @@
-'''
+"""
 Created on 19Jan.,2018
 
 @author: dlawrence
-'''
+"""
 
 from lazy import lazy
 from pyreference.genomic_region import GenomicRegion
@@ -11,7 +11,7 @@ import sys
 
 
 class Gene(GenomicRegion):
-    ''' Gene (which could contain multiple transcripts) '''
+    """ Gene (which could contain multiple transcripts) """
 
     @property
     def name(self):
@@ -38,8 +38,8 @@ class Gene(GenomicRegion):
 
     @lazy
     def representative_transcript(self):
-        ''' Returns longest coding transcript if gene is coding, otherwise longest transcript
-            Sort transcript ID alphabetically if equal length '''
+        """ Returns longest coding transcript if gene is coding, otherwise longest transcript
+            Sort transcript ID alphabetically if equal length """
         
         transcript = self.get_longest_coding_transcript()
         if transcript == None:

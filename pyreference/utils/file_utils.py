@@ -1,8 +1,8 @@
-'''
+"""
 Created on 22Jan.,2018
 
 @author: dlawrence
-'''
+"""
 from hashlib import md5
 import os
 import six

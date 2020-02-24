@@ -1,8 +1,8 @@
-'''
+"""
 Created on 22Jan.,2018
 
 @author: dlawrence
-'''
+"""
 import HTSeq
 import os
 

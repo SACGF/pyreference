@@ -1,4 +1,4 @@
-'''
+"""
 
 ACRF Cancer Genomics Facility
 
@@ -7,7 +7,7 @@ Created on 23Jan.,2018
 @see http://www.mirbase.org/
 
 @author: dlawrence
-'''
+"""
 
 from Bio.Seq import Seq
 from Bio.Alphabet import RNAAlphabet
