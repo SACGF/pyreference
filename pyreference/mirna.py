@@ -10,10 +10,9 @@ Created on 23Jan.,2018
 """
 
 from Bio.Seq import Seq
-from Bio.Alphabet import RNAAlphabet
 
 def rna_to_dna(rna_sequence):
-    rna = Seq(rna_sequence, RNAAlphabet())
+    rna = Seq(rna_sequence)
     return rna.back_transcribe()
 
 def rna_to_target(rna_sequence):

@@ -4,7 +4,6 @@ Created on 22Jan.,2018
 @author: dlawrence
 """
 
-from Bio.Alphabet import DNAAlphabet
 from Bio.Seq import Seq
 from Bio import SeqIO
 import HTSeq
@@ -106,5 +105,5 @@ def fasta_to_hash(fasta):
 
 
 def reverse_complement(dna_sequence):
-    seq = Seq(dna_sequence, DNAAlphabet())
+    seq = Seq(dna_sequence)
     return str(seq.reverse_complement())
