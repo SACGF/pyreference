@@ -25,7 +25,7 @@ class Test(unittest.TestCase):
     def test_ensembl_gtf(self):
         parser = parser_factory(gtf=self.ENSEMBL_GTF_FILENAME)
         data = parser.get_data()
-        self._test_exon_length(data, "ENST00000357654", 7088)
+        self._test_exon_length(data, "ENST00000357654.9", 7088)
 
 
     def test_refseq_gff3(self):

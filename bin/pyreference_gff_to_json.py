@@ -17,7 +17,8 @@ from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 
 class GFFParser(abc.ABC):
     CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
-    FEATURES = {}  # Set of features that we process, override in subclasses
+    FEATURE_ALLOW_LIST = {}
+    FEATURE_IGNORE_LIST = {"biological_region", "chromosome", "scaffold"}
 
     def __init__(self, filename, discard_contigs_with_underscores=True):
         self.filename = filename
@@ -36,7 +37,9 @@ class GFFParser(abc.ABC):
 
     def parse(self):
         for feature in HTSeq.GFF_Reader(self.filename):
-            if feature.type not in self.FEATURES:
+            if self.FEATURE_ALLOW_LIST and feature.type not in self.FEATURE_ALLOW_LIST:
+                continue
+            if feature.type in self.FEATURE_IGNORE_LIST:
                 continue
 
             try:
@@ -194,7 +197,7 @@ class GTFParser(GFFParser):
         GFF2 only has 2 levels of feature hierarchy, so we have to build or 3 levels of gene/transcript/exons ourselves
     """
     GTF_TRANSCRIPTS_DATA = GFFParser.CODING_FEATURES | {"exon"}
-    FEATURES = GTF_TRANSCRIPTS_DATA | {"gene"}
+    FEATURE_ALLOW_LIST = GTF_TRANSCRIPTS_DATA | {"gene"}
 
     def __init__(self, *args, **kwargs):
         super(GTFParser, self).__init__(*args, **kwargs)
@@ -251,15 +254,13 @@ class GFF3Parser(GFFParser):
 
     """
 
-    GFF3_GENES = {"gene", "pseudogene"}
-    GFF3_TRANSCRIPTS = {"mRNA", "ncRNA"}
-    GFF3_TRANSCRIPTS_DATA = {"exon", "CDS", "cDNA_match"}
-    FEATURES = GFF3_GENES | GFF3_TRANSCRIPTS | GFF3_TRANSCRIPTS_DATA
+    GFF3_GENES = {"gene", "pseudogene", "ncRNA_gene"}
+    GFF3_TRANSCRIPTS_DATA = {"exon", "CDS", "cDNA_match", "five_prime_UTR", "three_prime_UTR"}
 
     def __init__(self, *args, **kwargs):
         super(GFF3Parser, self).__init__(*args, **kwargs)
-        self.parent_ids = defaultdict()
-
+        self.gene_id_by_feature_id = defaultdict()
+        self.transcript_id_by_feature_id = defaultdict()
 
     def handle_feature(self, feature):
         if feature.type in self.GFF3_GENES:
@@ -272,26 +273,28 @@ class GFF3Parser(GFFParser):
 
             gene_name = feature.attr.get("Name")
             self.genes_by_id[gene_id] = self._create_gene(gene_name, feature)
-            self.gene_id_by_name[gene_name] = gene_id
-            self.parent_ids[feature.attr["ID"]] = gene_id
+            if gene_name:
+                self.gene_id_by_name[gene_name] = gene_id
+            self.gene_id_by_feature_id[feature.attr["ID"]] = gene_id
         else:
-            if feature.type in self.GFF3_TRANSCRIPTS:
-                parent_id = feature.attr["Parent"]
-                gene_id = self.parent_ids[parent_id]
-                gene = self.genes_by_id[gene_id]
-                self._handle_transcript(gene, feature)
-            elif feature.type in self.GFF3_TRANSCRIPTS_DATA:
+            if feature.type in self.GFF3_TRANSCRIPTS_DATA:
                 if feature.type == 'cDNA_match':
                     target = feature.attr["Target"]
                     transcript_id = target.split()[0]
                 else:
                     parent_id = feature.attr["Parent"]
-                    transcript_id = self.parent_ids[parent_id]
+                    transcript_id = self.transcript_id_by_feature_id[parent_id]
 
                 transcript = self.transcripts_by_id[transcript_id]
                 self._handle_transcript_data(transcript_id, transcript, feature)
             else:
-                raise ValueError("Don't know how to handle type '%s': %s" % (feature.type, feature))
+                # There are so many different transcript ontology terms just taking everything that is child of gene
+                parent_id = feature.attr["Parent"]
+                gene_id = self.gene_id_by_feature_id.get(parent_id)
+                if not gene_id:
+                    raise ValueError("Don't know how to handle feature type %s (not child of gene)" % feature.type)
+                gene = self.genes_by_id[gene_id]
+                self._handle_transcript(gene, feature)
 
     @staticmethod
     def _get_dbxref(feature):
@@ -311,7 +314,7 @@ class GFF3Parser(GFFParser):
         gene["biotype"].add(biotype)
         transcript["biotype"].add(biotype)
         self.transcripts_by_id[transcript_id] = transcript
-        self.parent_ids[feature.attr["ID"]] = transcript_id
+        self.transcript_id_by_feature_id[feature.attr["ID"]] = transcript_id
         return transcript
 
     def _handle_transcript_data(self, transcript_id, transcript, feature):
@@ -350,7 +353,6 @@ def main():
     parser = parser_factory(args.gtf, args.gff3,
                             discard_contigs_with_underscores=args.discard_contigs_with_underscores)
     data = parser.get_data()
-
     genes_json_gz = name_from_file_name(parser.filename) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
         json_str = json.dumps(data, cls=SortedSetEncoder, sort_keys=True)  # Sort so diffs work
