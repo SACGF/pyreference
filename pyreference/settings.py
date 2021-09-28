@@ -9,11 +9,6 @@ Created on 23Jan.,2018
 PYREFERENCE_JSON_VERSION = 5
 PYREFERENCE_JSON_VERSION_KEY = "pyreference_json_version"
 
-CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
-TRANSCRIPT_FEATURES = {"exon"}
-
-GTF_FEATURES = CODING_FEATURES | TRANSCRIPT_FEATURES
-
 # Keys used in dictionary (serialized to JSON)
 CHROM = "chr"
 START = "start"

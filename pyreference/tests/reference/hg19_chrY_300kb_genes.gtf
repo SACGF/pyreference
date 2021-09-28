@@ -1,3 +1,4 @@
+# From iGenomes hg19 UCSC genes.gtf
 chrY	stdin	exon	244668	245252	.	-	.	gene_id "PPP2R3B"; transcript_id "NM_013239"; exon_number "1"; exon_id "NM_013239.1"; gene_name "PPP2R3B";
 chrY	stdin	CDS	245105	245252	.	-	1	gene_id "PPP2R3B"; transcript_id "NM_013239"; exon_number "1"; exon_id "NM_013239.1"; gene_name "PPP2R3B";
 chrY	stdin	exon	249339	249445	.	-	.	gene_id "PPP2R3B"; transcript_id "NM_013239"; exon_number "2"; exon_id "NM_013239.2"; gene_name "PPP2R3B";
