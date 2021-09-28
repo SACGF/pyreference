@@ -48,9 +48,13 @@ This takes less than 4 seconds to load via a network drive on my machine.
 
     sudo pip install pyreference
 
-Pre-process your GTF files to create genes.gtf.json.gz (~1/20th the size of the input GTF file)
+Pre-process your GFF3 or GTF files to create genes.gtf.json.gz (~1/20th the size of the input GTF file)
 
-    pyreference_gtf_to_json.py genes.gtf
+    pyreference_gff_to_json.py --gtf genes.gtf
+
+or
+
+    pyreference_gff_to_json.py --gff3 genes.gff.gz
 
 Create a ~/pyreference.cfg file pointing to your references.
 

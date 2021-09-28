@@ -57,7 +57,7 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
                   "json_version": pyreference_json_version,
                   "file_name": gz_json_file_name}
         msg = "PyReference with %(version_key)s %(current_version)d attempted to load '%(file_name)s' with %(version_key)s: %(json_version)d.\n" % params
-        msg += "Please re-create with this version of pyreference_gtf_to_json.py."
+        msg += "Please re-create with this version of pyreference_gff_to_json.py."
         raise ValueError(msg)
 
     return data

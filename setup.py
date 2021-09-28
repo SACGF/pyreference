@@ -19,4 +19,4 @@ setup(name='pyreference',
           'pysam',
       ],
       python_requires='>=2.7, >=3.5',
-      scripts=['bin/pyreference_gtf_to_json.py'], )
+      scripts=['bin/pyreference_gff_to_json.py'], )
