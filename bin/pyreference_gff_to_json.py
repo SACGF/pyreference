@@ -9,7 +9,7 @@ import gzip
 import json
 import os
 from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, CODING_FEATURES, \
-    PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
+    GTF_FEATURES, PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
 from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 
 
@@ -18,7 +18,7 @@ class SetEncoder(json.JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, set):
-            return list(obj)
+            return list(sorted(obj))
         return json.JSONEncoder.default(self, obj)
 
 
@@ -96,83 +96,93 @@ def main():
     discarded_contigs = Counter()
 
     for feature in HTSeq.GFF_Reader(args.gtf):
-        chrom = feature.iv.chrom
-        if args.discard_contigs_with_underscores and "_" in chrom:
-            discarded_contigs[chrom] += 1
+        if feature.type not in GTF_FEATURES:
             continue
 
-        gene_id = feature.attr["gene_id"]
+        try:
+            chrom = feature.iv.chrom
+            if args.discard_contigs_with_underscores and not chrom.startswith("NC_") and "_" in chrom:
+                discarded_contigs[chrom] += 1
+                continue
 
-        gene_name = feature.attr["gene_name"]
-        gene_id_by_name[gene_name] = gene_id  # TODO: Check for dupes?
+            gene_id = feature.attr["gene_id"]
 
-        gene = genes_by_id.get(gene_id)
-        if gene is None:
-            gene = {"name": gene_name,
-                    "transcripts": set(),
-                    "biotype": set(),
-                    CHROM: feature.iv.chrom,
-                    START: feature.iv.start,
-                    END: feature.iv.end,
-                    STRAND: feature.iv.strand, }
+            gene_name = feature.attr.get("gene_name")  # Non mandatory - Ensembl doesn't have on some RNAs
+            if gene_name:
+                gene_id_by_name[gene_name] = gene_id  # TODO: Check for dupes?
 
-            genes_by_id[gene_id] = gene
-        else:
-            update_extents(gene, feature)
+            gene = genes_by_id.get(gene_id)
+            if gene is None:
+                gene = {"name": gene_name,
+                        "transcripts": set(),
+                        "biotype": set(),
+                        CHROM: feature.iv.chrom,
+                        START: feature.iv.start,
+                        END: feature.iv.end,
+                        STRAND: feature.iv.strand, }
 
-        transcript_id = feature.attr["transcript_id"]
-        gene["transcripts"].add(transcript_id)
-        transcript = transcripts_by_id.get(transcript_id)
-        if transcript is None:
-            transcript = {"features_by_type": defaultdict(list),
-                          "biotype": set(),
-                          CHROM: feature.iv.chrom,
-                          START: feature.iv.start,
-                          END: feature.iv.end,
-                          STRAND: feature.iv.strand,
-                          IS_CODING: 0, }
-            transcripts_by_id[transcript_id] = transcript
-        else:
-            update_extents(transcript, feature)
-
-        # No need to store chrom/strand for each feature, will use transcript         
-        feature_dict = {START: feature.iv.start,
-                        END: feature.iv.end, }
-
-        transcript["features_by_type"][feature.type].append(feature_dict)
-        if feature.type in CODING_FEATURES:
-            cds_extent = transcript_cds_by_id.get(transcript_id)
-            if cds_extent is None:
-                cds_extent = {START: feature.iv.start,
-                              END: feature.iv.end}
-                transcript_cds_by_id[transcript_id] = cds_extent
+                genes_by_id[gene_id] = gene
             else:
-                cds_extent[START] = min(cds_extent[START], feature.iv.start)
-                cds_extent[END] = max(cds_extent[END], feature.iv.end)
+                update_extents(gene, feature)
 
-        biotype = feature.attr.get("gene_biotype")
-        if biotype is None:
-            biotype = get_biotype_from_transcript_id(transcript_id)
+            transcript_id = feature.attr["transcript_id"]
+            gene["transcripts"].add(transcript_id)
+            transcript = transcripts_by_id.get(transcript_id)
+            if transcript is None:
+                transcript = {"features_by_type": defaultdict(list),
+                              "biotype": set(),
+                              CHROM: feature.iv.chrom,
+                              START: feature.iv.start,
+                              END: feature.iv.end,
+                              STRAND: feature.iv.strand,
+                              IS_CODING: 0, }
+                transcripts_by_id[transcript_id] = transcript
+            else:
+                update_extents(transcript, feature)
 
-        if biotype:
-            gene["biotype"].add(biotype)
-            transcript["biotype"].add(biotype)
+            # No need to store chrom/strand for each feature, will use transcript
+            feature_dict = {START: feature.iv.start,
+                            END: feature.iv.end, }
 
-        gene_ids_by_biotype[biotype].add(gene_id)
+            transcript["features_by_type"][feature.type].append(feature_dict)
+            if feature.type in CODING_FEATURES:
+                cds_extent = transcript_cds_by_id.get(transcript_id)
+                if cds_extent is None:
+                    cds_extent = {START: feature.iv.start,
+                                  END: feature.iv.end}
+                    transcript_cds_by_id[transcript_id] = cds_extent
+                else:
+                    cds_extent[START] = min(cds_extent[START], feature.iv.start)
+                    cds_extent[END] = max(cds_extent[END], feature.iv.end)
+
+            biotype = feature.attr.get("gene_biotype")
+            if biotype is None:
+                biotype = get_biotype_from_transcript_id(transcript_id)
+
+            if biotype:
+                gene["biotype"].add(biotype)
+                transcript["biotype"].add(biotype)
+
+            gene_ids_by_biotype[biotype].add(gene_id)
+        except Exception as e:
+            print("Could not parse '%s': %s" % (feature, e))
+            raise e
 
     add_UTR_features(transcripts_by_id, transcript_cds_by_id)
 
-    data = {PYREFERENCE_JSON_VERSION_KEY: PYREFERENCE_JSON_VERSION,
-            "reference_gtf": {"path": os.path.abspath(args.gtf),
-                              "md5sum": file_md5sum(args.gtf)},
-            "genes_by_id": genes_by_id,
-            "transcripts_by_id": transcripts_by_id,
-            "gene_id_by_name": gene_id_by_name,
-            "gene_ids_by_biotype": gene_ids_by_biotype, }
+    data = {
+        PYREFERENCE_JSON_VERSION_KEY: PYREFERENCE_JSON_VERSION,
+        "reference_gtf": {"path": os.path.abspath(args.gtf),
+                          "md5sum": file_md5sum(args.gtf)},
+        "genes_by_id": genes_by_id,
+        "transcripts_by_id": transcripts_by_id,
+        "gene_id_by_name": gene_id_by_name,
+        "gene_ids_by_biotype": gene_ids_by_biotype,
+    }
 
     genes_json_gz = name_from_file_name(args.gtf) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
-        json_str = json.dumps(data, cls=SetEncoder)
+        json_str = json.dumps(data, cls=SetEncoder, sort_keys=True)  # Sort so diffs work
         outfile.write(json_str.encode('ascii'))
 
     print("Wrote:", genes_json_gz)
