@@ -58,16 +58,19 @@ class GFFParser(abc.ABC):
 
     @staticmethod
     def _create_gene(gene_name, feature):
-        biotypes = set()
         # Attempt to get some biotypes in there if available
-        gene_biotype = feature.attr.get("gene_biotype")
-        if gene_biotype:
-            biotypes.add(gene_biotype)
-        biotype = feature.attr.get("biotype")
+        if feature.type == "gene":
+            gene_version = feature.attr.get("version")
+            biotype = feature.attr.get("biotype")
+        else:
+            gene_version = feature.attr.get("gene_version")
+            biotype = feature.attr.get("gene_biotype")
+
+        biotypes = set()
         if biotype:
             biotypes.add(biotype)
 
-        return {
+        gene = {
             "name": gene_name,
             "transcripts": set(),
             "biotype": biotypes,
@@ -76,6 +79,10 @@ class GFFParser(abc.ABC):
             END: feature.iv.end,
             STRAND: feature.iv.strand
         }
+
+        if gene_version:
+            gene["version"] = int(gene_version)
+        return gene
 
     @staticmethod
     def _create_transcript(feature):
@@ -207,6 +214,10 @@ class GTFParser(GFFParser):
             self._update_extents(gene, feature)
 
         transcript_id = feature.attr.get("transcript_id")
+        transcript_version = feature.attr.get("transcript_version")
+        if transcript_version:
+            transcript_id += "." + transcript_version
+
         if transcript_id:
             gene["transcripts"].add(transcript_id)
             transcript = self.transcripts_by_id.get(transcript_id)
@@ -283,7 +294,7 @@ class GFF3Parser(GFFParser):
         return dbxref
 
     def _handle_transcript(self, gene, feature):
-        print("_handle_transcript(%s, %s)" % (gene, feature))
+        # print("_handle_transcript(%s, %s)" % (gene, feature))
         transcript_id = feature.attr["transcript_id"]
         transcript = self._create_transcript(feature)
         biotype = self._get_biotype_from_transcript_id(transcript_id)
@@ -295,7 +306,7 @@ class GFF3Parser(GFFParser):
         return transcript
 
     def _handle_transcript_data(self, transcript_id, transcript, feature):
-        print("_handle_transcript_data(%s, %s)" % (transcript, feature))
+        # print("_handle_transcript_data(%s, %s)" % (transcript, feature))
         self._add_transcript_data(transcript_id, transcript, feature)
 
 
