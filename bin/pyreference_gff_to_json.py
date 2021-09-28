@@ -109,7 +109,11 @@ class GFFParser(abc.ABC):
 
     def _add_transcript_data(self, transcript_id, transcript, feature):
         feature_dict = {START: feature.iv.start,
-                        END: feature.iv.end, }
+                        END: feature.iv.end}
+        if feature.type == "cDNA_match":
+            gap = feature.attr.get("Gap")
+            if gap:
+                feature_dict["gap"] = gap
 
         transcript["features_by_type"][feature.type].append(feature_dict)
         if feature.type in self.CODING_FEATURES:
@@ -258,10 +262,14 @@ class GFF3Parser(GFFParser):
 
 
     def handle_feature(self, feature):
-        dbxref = self._get_dbxref(feature)
-
         if feature.type in self.GFF3_GENES:
-            gene_id = dbxref["GeneID"]
+            gene_id = feature.attr.get("gene_id")
+            if not gene_id:
+                dbxref = self._get_dbxref(feature)
+                gene_id = dbxref.get("GeneID")
+            if not gene_id:
+                raise ValueError("Could not obtain 'gene_id', tried 'gene_id' and 'Dbxref[GeneID]'")
+
             gene_name = feature.attr.get("Name")
             self.genes_by_id[gene_id] = self._create_gene(gene_name, feature)
             self.gene_id_by_name[gene_name] = gene_id
@@ -287,6 +295,7 @@ class GFF3Parser(GFFParser):
 
     @staticmethod
     def _get_dbxref(feature):
+        """ RefSeq stores attribute with more keys, eg: 'Dbxref=GeneID:7840,HGNC:HGNC:428,MIM:606844' """
         dbxref = {}
         dbxref_str = feature.attr.get("Dbxref")
         if dbxref_str:
