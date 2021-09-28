@@ -16,12 +16,14 @@ from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 
 
 class GFFParser(abc.ABC):
+    CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
     FEATURES = {}  # Set of features that we process, override in subclasses
 
     def __init__(self, filename, discard_contigs_with_underscores=True):
         self.filename = filename
         self.discard_contigs_with_underscores = discard_contigs_with_underscores
 
+        self.discarded_contigs = Counter()
         self.genes_by_id = {}
         self.transcripts_by_id = {}
         self.gene_id_by_name = {}
@@ -40,15 +42,18 @@ class GFFParser(abc.ABC):
             try:
                 chrom = feature.iv.chrom
                 if self.discard_contigs_with_underscores and not chrom.startswith("NC_") and "_" in chrom:
-                    discarded_contigs[chrom] += 1
+                    self.discarded_contigs[chrom] += 1
                     continue
                 self.handle_feature(feature)
             except Exception as e:
-                print("Could not parse '%s': %s" % (feature, e))
+                print("Could not parse '%s': %s" % (feature.get_gff_line(), e))
                 raise e
 
     def finish(self):
         self._add_coding_and_utr_features()
+
+        if self.discarded_contigs:
+            print("Discarded contigs: %s" % self.discarded_contigs)
 
 
     @staticmethod
@@ -95,8 +100,7 @@ class GFFParser(abc.ABC):
             return "tRNA"
         return "N/A"
 
-    def _add_transcript_data(self, transcript, feature):
-        transcript_id = feature.attr["transcript_id"]
+    def _add_transcript_data(self, transcript_id, transcript, feature):
         feature_dict = {START: feature.iv.start,
                         END: feature.iv.end, }
 
@@ -178,8 +182,7 @@ class GTFParser(GFFParser):
 
         GFF2 only has 2 levels of feature hierarchy, so we have to build or 3 levels of gene/transcript/exons ourselves
     """
-    CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
-    GTF_TRANSCRIPTS_DATA = CODING_FEATURES | {"exon"}
+    GTF_TRANSCRIPTS_DATA = GFFParser.CODING_FEATURES | {"exon"}
     FEATURES = GTF_TRANSCRIPTS_DATA | {"gene"}
 
     def __init__(self, *args, **kwargs):
@@ -215,7 +218,7 @@ class GTFParser(GFFParser):
 
             # No need to store chrom/strand for each feature, will use transcript
             if feature.type in self.GTF_TRANSCRIPTS_DATA:
-                self._add_transcript_data(transcript, feature)
+                self._add_transcript_data(transcript_id, transcript, feature)
 
             biotype = feature.attr.get("gene_biotype")
             if biotype is None:
@@ -240,39 +243,36 @@ class GFF3Parser(GFFParser):
 
     def __init__(self, *args, **kwargs):
         super(GFF3Parser, self).__init__(*args, **kwargs)
-        self.parents = defaultdict()
+        self.parent_ids = defaultdict()
 
 
     def handle_feature(self, feature):
         dbxref = self._get_dbxref(feature)
 
-        record = None
         if feature.type in self.GFF3_GENES:
             gene_id = dbxref["GeneID"]
             gene_name = feature.attr.get("Name")
-            record = self._create_gene(gene_name, feature)
-            self.genes_by_id[gene_id] = record
+            self.genes_by_id[gene_id] = self._create_gene(gene_name, feature)
             self.gene_id_by_name[gene_name] = gene_id
+            self.parent_ids[feature.attr["ID"]] = gene_id
         else:
-            if feature.type == 'cDNA_match':
-                target = feature.attr["Target"]
-                transcript_id = target.split()[0]
-                print("Looking in:")
-                print(self.transcripts_by_id)
-                parent = self.transcripts_by_id[transcript_id]
-            else:
-                parent_id = feature.attr["Parent"]
-                parent = self.parents[parent_id]
-
             if feature.type in self.GFF3_TRANSCRIPTS:
-                record = self._handle_transcript(parent, feature)
+                parent_id = feature.attr["Parent"]
+                gene_id = self.parent_ids[parent_id]
+                gene = self.genes_by_id[gene_id]
+                self._handle_transcript(gene, feature)
             elif feature.type in self.GFF3_TRANSCRIPTS_DATA:
-                self._handle_transcript_data(parent, feature)
+                if feature.type == 'cDNA_match':
+                    target = feature.attr["Target"]
+                    transcript_id = target.split()[0]
+                else:
+                    parent_id = feature.attr["Parent"]
+                    transcript_id = self.parent_ids[parent_id]
+
+                transcript = self.transcripts_by_id[transcript_id]
+                self._handle_transcript_data(transcript_id, transcript, feature)
             else:
                 raise ValueError("Don't know how to handle type '%s': %s" % (feature.type, feature))
-
-        if record:
-            self.parents[feature.attr["ID"]] = record
 
     @staticmethod
     def _get_dbxref(feature):
@@ -291,11 +291,12 @@ class GFF3Parser(GFFParser):
         gene["biotype"].add(biotype)
         transcript["biotype"].add(biotype)
         self.transcripts_by_id[transcript_id] = transcript
+        self.parent_ids[feature.attr["ID"]] = transcript_id
         return transcript
 
-    def _handle_transcript_data(self, transcript, feature):
+    def _handle_transcript_data(self, transcript_id, transcript, feature):
         print("_handle_transcript_data(%s, %s)" % (transcript, feature))
-        self._add_transcript_data(transcript, feature)
+        self._add_transcript_data(transcript_id, transcript, feature)
 
 
 def handle_args():
@@ -326,8 +327,6 @@ class SortedSetEncoder(json.JSONEncoder):
 
 def main():
     args = handle_args()
-    discarded_contigs = Counter()
-
     parser = parser_factory(args.gtf, args.gff3,
                             discard_contigs_with_underscores=args.discard_contigs_with_underscores)
     data = parser.get_data()
@@ -338,8 +337,6 @@ def main():
         outfile.write(json_str.encode('ascii'))
 
     print("Wrote:", genes_json_gz)
-    if discarded_contigs:
-        print("Discarded contigs: %s" % discarded_contigs)
 
 
 if __name__ == '__main__':
