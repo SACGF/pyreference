@@ -25,7 +25,6 @@ class GFFParser(abc.ABC):
         self.genes_by_id = {}
         self.transcripts_by_id = {}
         self.gene_id_by_name = {}
-        self.gene_ids_by_biotype = defaultdict(set)
         # Store CDS in separate dict as we don't need to write as JSON
         self.transcript_cds_by_id = {}
 
@@ -51,12 +50,22 @@ class GFFParser(abc.ABC):
     def finish(self):
         self._add_coding_and_utr_features()
 
+
     @staticmethod
     def _create_gene(gene_name, feature):
+        biotypes = set()
+        # Attempt to get some biotypes in there if available
+        gene_biotype = feature.attr.get("gene_biotype")
+        if gene_biotype:
+            biotypes.add(gene_biotype)
+        biotype = feature.attr.get("biotype")
+        if biotype:
+            biotypes.add(biotype)
+
         return {
             "name": gene_name,
             "transcripts": set(),
-            "biotype": set(),
+            "biotype": biotypes,
             CHROM: feature.iv.chrom,
             START: feature.iv.start,
             END: feature.iv.end,
@@ -85,6 +94,22 @@ class GFFParser(abc.ABC):
         if "tRNA" in transcript_id:
             return "tRNA"
         return "N/A"
+
+    def _add_transcript_data(self, transcript, feature):
+        transcript_id = feature.attr["transcript_id"]
+        feature_dict = {START: feature.iv.start,
+                        END: feature.iv.end, }
+
+        transcript["features_by_type"][feature.type].append(feature_dict)
+        if feature.type in self.CODING_FEATURES:
+            cds_extent = self.transcript_cds_by_id.get(transcript_id)
+            if cds_extent is None:
+                cds_extent = {START: feature.iv.start,
+                              END: feature.iv.end}
+                self.transcript_cds_by_id[transcript_id] = cds_extent
+            else:
+                cds_extent[START] = min(cds_extent[START], feature.iv.start)
+                cds_extent[END] = max(cds_extent[END], feature.iv.end)
 
     @staticmethod
     def _update_extents(genomic_region_dict, feature):
@@ -132,6 +157,11 @@ class GFFParser(abc.ABC):
         self.parse()
         self.finish()
 
+        gene_ids_by_biotype = defaultdict(set)
+        for gene_id, gene in self.genes_by_id.items():
+            for biotype in gene["biotype"]:
+                gene_ids_by_biotype[biotype].add(gene_id)
+
         return {
             PYREFERENCE_JSON_VERSION_KEY: PYREFERENCE_JSON_VERSION,
             "reference_gtf": {"path": os.path.abspath(self.filename),
@@ -139,7 +169,7 @@ class GFFParser(abc.ABC):
             "genes_by_id": self.genes_by_id,
             "transcripts_by_id": self.transcripts_by_id,
             "gene_id_by_name": self.gene_id_by_name,
-            "gene_ids_by_biotype": self.gene_ids_by_biotype,
+            "gene_ids_by_biotype": gene_ids_by_biotype,
         }
 
 
@@ -149,16 +179,22 @@ class GTFParser(GFFParser):
         GFF2 only has 2 levels of feature hierarchy, so we have to build or 3 levels of gene/transcript/exons ourselves
     """
     CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
-    FEATURES = CODING_FEATURES | {"exon"}
+    GTF_TRANSCRIPTS_DATA = CODING_FEATURES | {"exon"}
+    FEATURES = GTF_TRANSCRIPTS_DATA | {"gene"}
 
     def __init__(self, *args, **kwargs):
         super(GTFParser, self).__init__(*args, **kwargs)
 
     def handle_feature(self, feature):
         gene_id = feature.attr["gene_id"]
-        gene_name = feature.attr.get("gene_name")  # Non mandatory - Ensembl doesn't have on some RNAs
+        # Non mandatory - Ensembl doesn't have on some RNAs
+        gene_name = None
+        if feature.type == "gene":
+            gene_name = feature.attr.get("Name")
+        else:
+            gene_name = feature.attr.get("gene_name")
         if gene_name:
-            self.gene_id_by_name[gene_name] = gene_id  # TODO: Check for dupes?
+            self.gene_id_by_name[gene_name] = gene_id  # Shouldn't be dupes per file
 
         gene = self.genes_by_id.get(gene_id)
         if gene is None:
@@ -167,43 +203,35 @@ class GTFParser(GFFParser):
         else:
             self._update_extents(gene, feature)
 
-        transcript_id = feature.attr["transcript_id"]
-        gene["transcripts"].add(transcript_id)
-        transcript = self.transcripts_by_id.get(transcript_id)
-        if transcript is None:
-            transcript = self._create_transcript(feature)
-            self.transcripts_by_id[transcript_id] = transcript
-        else:
-            self._update_extents(transcript, feature)
-
-        # No need to store chrom/strand for each feature, will use transcript
-        feature_dict = {START: feature.iv.start,
-                        END: feature.iv.end, }
-
-        transcript["features_by_type"][feature.type].append(feature_dict)
-        if feature.type in self.CODING_FEATURES:
-            cds_extent = self.transcript_cds_by_id.get(transcript_id)
-            if cds_extent is None:
-                cds_extent = {START: feature.iv.start,
-                              END: feature.iv.end}
-                self.transcript_cds_by_id[transcript_id] = cds_extent
+        transcript_id = feature.attr.get("transcript_id")
+        if transcript_id:
+            gene["transcripts"].add(transcript_id)
+            transcript = self.transcripts_by_id.get(transcript_id)
+            if transcript is None:
+                transcript = self._create_transcript(feature)
+                self.transcripts_by_id[transcript_id] = transcript
             else:
-                cds_extent[START] = min(cds_extent[START], feature.iv.start)
-                cds_extent[END] = max(cds_extent[END], feature.iv.end)
+                self._update_extents(transcript, feature)
 
-        biotype = feature.attr.get("gene_biotype")
-        if biotype is None:
-            biotype = self._get_biotype_from_transcript_id(transcript_id)
+            # No need to store chrom/strand for each feature, will use transcript
+            if feature.type in self.GTF_TRANSCRIPTS_DATA:
+                self._add_transcript_data(transcript, feature)
 
-        if biotype:
-            gene["biotype"].add(biotype)
-            transcript["biotype"].add(biotype)
+            biotype = feature.attr.get("gene_biotype")
+            if biotype is None:
+                biotype = self._get_biotype_from_transcript_id(transcript_id)
 
-        self.gene_ids_by_biotype[biotype].add(gene_id)
+            if biotype:
+                gene["biotype"].add(biotype)
+                transcript["biotype"].add(biotype)
 
 
 class GFF3Parser(GFFParser):
-    """ GFF3 - Used by RefSeq, @see https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md"""
+    """ GFF3 - Used by RefSeq, @see https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md
+
+        GFF3 support arbitrary hierarchy
+
+    """
 
     GFF3_GENES = {"gene", "pseudogene"}
     GFF3_TRANSCRIPTS = {"mRNA", "ncRNA"}
@@ -212,9 +240,62 @@ class GFF3Parser(GFFParser):
 
     def __init__(self, *args, **kwargs):
         super(GFF3Parser, self).__init__(*args, **kwargs)
+        self.parents = defaultdict()
+
 
     def handle_feature(self, feature):
-        pass
+        dbxref = self._get_dbxref(feature)
+
+        record = None
+        if feature.type in self.GFF3_GENES:
+            gene_id = dbxref["GeneID"]
+            gene_name = feature.attr.get("Name")
+            record = self._create_gene(gene_name, feature)
+            self.genes_by_id[gene_id] = record
+            self.gene_id_by_name[gene_name] = gene_id
+        else:
+            if feature.type == 'cDNA_match':
+                target = feature.attr["Target"]
+                transcript_id = target.split()[0]
+                print("Looking in:")
+                print(self.transcripts_by_id)
+                parent = self.transcripts_by_id[transcript_id]
+            else:
+                parent_id = feature.attr["Parent"]
+                parent = self.parents[parent_id]
+
+            if feature.type in self.GFF3_TRANSCRIPTS:
+                record = self._handle_transcript(parent, feature)
+            elif feature.type in self.GFF3_TRANSCRIPTS_DATA:
+                self._handle_transcript_data(parent, feature)
+            else:
+                raise ValueError("Don't know how to handle type '%s': %s" % (feature.type, feature))
+
+        if record:
+            self.parents[feature.attr["ID"]] = record
+
+    @staticmethod
+    def _get_dbxref(feature):
+        dbxref = {}
+        dbxref_str = feature.attr.get("Dbxref")
+        if dbxref_str:
+            dbxref = dict(d.split(":", 1) for d in dbxref_str.split(","))
+        return dbxref
+
+    def _handle_transcript(self, gene, feature):
+        print("_handle_transcript(%s, %s)" % (gene, feature))
+        transcript_id = feature.attr["transcript_id"]
+        transcript = self._create_transcript(feature)
+        biotype = self._get_biotype_from_transcript_id(transcript_id)
+        gene["transcripts"].add(transcript_id)
+        gene["biotype"].add(biotype)
+        transcript["biotype"].add(biotype)
+        self.transcripts_by_id[transcript_id] = transcript
+        return transcript
+
+    def _handle_transcript_data(self, transcript, feature):
+        print("_handle_transcript_data(%s, %s)" % (transcript, feature))
+        self._add_transcript_data(transcript, feature)
 
 
 def handle_args():
