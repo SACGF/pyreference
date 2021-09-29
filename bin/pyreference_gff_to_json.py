@@ -129,16 +129,6 @@ class GFFParser(abc.ABC):
                 cds_extent[START] = min(cds_extent[START], feature.iv.start)
                 cds_extent[END] = max(cds_extent[END], feature.iv.end)
 
-    @staticmethod
-    def _update_extents(genomic_region_dict, feature):
-        start = genomic_region_dict[START]
-        if feature.iv.start < start:
-            genomic_region_dict[START] = feature.iv.start
-
-        end = genomic_region_dict[END]
-        if feature.iv.end > end:
-            genomic_region_dict[END] = feature.iv.end
-
     def _add_coding_and_utr_features(self):
         """ Add 5PUTR/3PUTR features to coding transcripts
 
@@ -253,6 +243,16 @@ class GTFParser(GFFParser):
             if biotype:
                 gene["biotype"].add(biotype)
                 transcript["biotype"].add(biotype)
+
+    @staticmethod
+    def _update_extents(genomic_region_dict, feature):
+        start = genomic_region_dict[START]
+        if feature.iv.start < start:
+            genomic_region_dict[START] = feature.iv.start
+
+        end = genomic_region_dict[END]
+        if feature.iv.end > end:
+            genomic_region_dict[END] = feature.iv.end
 
 
 class GFF3Parser(GFFParser):
