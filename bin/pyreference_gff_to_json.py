@@ -18,7 +18,7 @@ from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 class GFFParser(abc.ABC):
     CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
     FEATURE_ALLOW_LIST = {}
-    FEATURE_IGNORE_LIST = {"biological_region", "chromosome", "scaffold"}
+    FEATURE_IGNORE_LIST = {"biological_region", "chromosome", "region", "scaffold"}
 
     def __init__(self, filename, discard_contigs_with_underscores=True):
         self.filename = filename
@@ -140,7 +140,11 @@ class GFFParser(abc.ABC):
             genomic_region_dict[END] = feature.iv.end
 
     def _add_coding_and_utr_features(self):
-        """ Add 5PUTR/3PUTR features to coding transcripts """
+        """ Add 5PUTR/3PUTR features to coding transcripts
+
+            Ensembl GTFs have 'five_prime_UTR' features (similar to CDS etc) but we make this for GFFs that
+            don't have those features
+        """
 
         for transcript_id, transcript in self.transcripts_by_id.items():
             cds_extent = self.transcript_cds_by_id.get(transcript_id)
@@ -152,21 +156,25 @@ class GFFParser(abc.ABC):
                 if transcript[STRAND] == '-':  # Switch
                     (left, right) = (right, left)
 
-                cds_start = cds_extent[START]
-                cds_end = cds_extent[END]
+                cds_min = cds_extent[START]
+                cds_max = cds_extent[END]
 
+                # exon is in stranded order
                 for exon in features_by_type["exon"]:
                     exon_start = exon[START]
                     exon_end = exon[END]
 
-                    if exon_start < cds_start:
-                        end_non_coding = min(cds_start, exon_end)
+                    if exon_start < cds_min:
+                        end_non_coding = min(cds_min, exon_end)
+                        transcript["cds_start"] = end_non_coding
+
                         utr_feature = {START: exon_start,
                                        END: end_non_coding}
                         features_by_type[left].append(utr_feature)
 
-                    if exon_end > cds_end:
-                        start_non_coding = max(cds_end, exon_start)
+                    if exon_end > cds_max:
+                        start_non_coding = max(cds_max, exon_start)
+                        transcript["cds_end"] = start_non_coding
                         utr_feature = {START: start_non_coding,
                                        END: exon_end}
                         features_by_type[right].append(utr_feature)
@@ -282,19 +290,24 @@ class GFF3Parser(GFFParser):
                     target = feature.attr["Target"]
                     transcript_id = target.split()[0]
                 else:
+                    # Some exons etc may be for miRNAs that have no transcript ID, so skip those (won't have parent)
                     parent_id = feature.attr["Parent"]
-                    transcript_id = self.transcript_id_by_feature_id[parent_id]
+                    transcript_id = self.transcript_id_by_feature_id.get(parent_id)
 
-                transcript = self.transcripts_by_id[transcript_id]
-                self._handle_transcript_data(transcript_id, transcript, feature)
+                if transcript_id:
+                    transcript = self.transcripts_by_id[transcript_id]
+                    self._handle_transcript_data(transcript_id, transcript, feature)
             else:
-                # There are so many different transcript ontology terms just taking everything that is child of gene
-                parent_id = feature.attr["Parent"]
-                gene_id = self.gene_id_by_feature_id.get(parent_id)
-                if not gene_id:
-                    raise ValueError("Don't know how to handle feature type %s (not child of gene)" % feature.type)
-                gene = self.genes_by_id[gene_id]
-                self._handle_transcript(gene, feature)
+                # There are so many different transcript ontology terms just taking everything that
+                # has a transcript_id and is child of gene (ie skip miRNA etc that is child of primary_transcript)
+                transcript_id = feature.attr.get("transcript_id")
+                if transcript_id:
+                    parent_id = feature.attr["Parent"]
+                    gene_id = self.gene_id_by_feature_id.get(parent_id)
+                    if not gene_id:
+                        raise ValueError("Don't know how to handle feature type %s (not child of gene)" % feature.type)
+                    gene = self.genes_by_id[gene_id]
+                    self._handle_transcript(gene, transcript_id, feature)
 
     @staticmethod
     def _get_dbxref(feature):
@@ -305,9 +318,8 @@ class GFF3Parser(GFFParser):
             dbxref = dict(d.split(":", 1) for d in dbxref_str.split(","))
         return dbxref
 
-    def _handle_transcript(self, gene, feature):
+    def _handle_transcript(self, gene, transcript_id, feature):
         # print("_handle_transcript(%s, %s)" % (gene, feature))
-        transcript_id = feature.attr["transcript_id"]
         transcript = self._create_transcript(feature)
         biotype = self._get_biotype_from_transcript_id(transcript_id)
         gene["transcripts"].add(transcript_id)
