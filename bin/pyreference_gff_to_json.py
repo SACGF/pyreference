@@ -61,17 +61,7 @@ class GFFParser(abc.ABC):
 
     @staticmethod
     def _create_gene(gene_name, feature):
-        # Attempt to get some biotypes in there if available
-        if feature.type == "gene":
-            gene_version = feature.attr.get("version")
-            biotype = feature.attr.get("biotype")
-        else:
-            gene_version = feature.attr.get("gene_version")
-            biotype = feature.attr.get("gene_biotype")
-
         biotypes = set()
-        if biotype:
-            biotypes.add(biotype)
 
         gene = {
             "name": gene_name,
@@ -82,6 +72,20 @@ class GFFParser(abc.ABC):
             END: feature.iv.end,
             STRAND: feature.iv.strand
         }
+
+        # Attempt to get some biotypes in there if available
+        if feature.type == "gene":
+            gene_version = feature.attr.get("version")
+            biotype = feature.attr.get("biotype")
+            description = feature.attr.get("description")
+            if description:
+                gene["description"] = description
+        else:
+            gene_version = feature.attr.get("gene_version")
+            biotype = feature.attr.get("gene_biotype")
+
+        if biotype:
+            biotypes.add(biotype)
 
         if gene_version:
             gene["version"] = int(gene_version)
@@ -273,14 +277,18 @@ class GFF3Parser(GFFParser):
     def handle_feature(self, feature):
         if feature.type in self.GFF3_GENES:
             gene_id = feature.attr.get("gene_id")
+            dbxref = self._get_dbxref(feature)
             if not gene_id:
-                dbxref = self._get_dbxref(feature)
                 gene_id = dbxref.get("GeneID")
             if not gene_id:
                 raise ValueError("Could not obtain 'gene_id', tried 'gene_id' and 'Dbxref[GeneID]'")
 
             gene_name = feature.attr.get("Name")
-            self.genes_by_id[gene_id] = self._create_gene(gene_name, feature)
+            gene = self._create_gene(gene_name, feature)
+            hgnc = dbxref.get("HGNC")
+            if hgnc:
+                gene["HGNC"] = hgnc
+            self.genes_by_id[gene_id] = gene
             if gene_name:
                 self.gene_id_by_name[gene_name] = gene_id
             self.gene_id_by_feature_id[feature.attr["ID"]] = gene_id
@@ -325,6 +333,9 @@ class GFF3Parser(GFFParser):
         gene["transcripts"].add(transcript_id)
         gene["biotype"].add(biotype)
         transcript["biotype"].add(biotype)
+        partial = feature.attr.get("partial")
+        if partial:
+            transcript["partial"] = 1
         self.transcripts_by_id[transcript_id] = transcript
         self.transcript_id_by_feature_id[feature.attr["ID"]] = transcript_id
         return transcript
