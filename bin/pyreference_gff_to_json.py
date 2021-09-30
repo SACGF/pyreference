@@ -6,6 +6,7 @@ import HTSeq
 import abc
 import gzip
 import json
+import logging
 import os
 from argparse import ArgumentParser
 from collections import defaultdict, Counter
@@ -303,8 +304,11 @@ class GFF3Parser(GFFParser):
                     transcript_id = target.split()[0]
                 else:
                     # Some exons etc may be for miRNAs that have no transcript ID, so skip those (won't have parent)
-                    assert parent_id is not None
-                    transcript_id = self.transcript_id_by_feature_id.get(parent_id)
+                    if parent_id:
+                        transcript_id = self.transcript_id_by_feature_id.get(parent_id)
+                    else:
+                        logging.warning("Transcript data has no parent: %s" % feature.get_gff_line())
+                        transcript_id = None
 
                 if transcript_id:
                     transcript = self.transcripts_by_id[transcript_id]
