@@ -18,7 +18,7 @@ from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 class GFFParser(abc.ABC):
     CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
     FEATURE_ALLOW_LIST = {}
-    FEATURE_IGNORE_LIST = {"biological_region", "chromosome", "region", "scaffold"}
+    FEATURE_IGNORE_LIST = {"biological_region", "chromosome", "region", "scaffold", "supercontig"}
 
     def __init__(self, filename, discard_contigs_with_underscores=True):
         self.filename = filename
@@ -266,7 +266,7 @@ class GFF3Parser(GFFParser):
 
     """
 
-    GFF3_GENES = {"gene", "pseudogene", "ncRNA_gene"}
+    GFF3_GENES = {"gene", "pseudogene"}
     GFF3_TRANSCRIPTS_DATA = {"exon", "CDS", "cDNA_match", "five_prime_UTR", "three_prime_UTR"}
 
     def __init__(self, *args, **kwargs):
@@ -275,7 +275,11 @@ class GFF3Parser(GFFParser):
         self.transcript_id_by_feature_id = defaultdict()
 
     def handle_feature(self, feature):
-        if feature.type in self.GFF3_GENES:
+        parent_id = feature.attr.get("Parent")
+        # Genes never have parents
+        # RefSeq genes are always one of GFF3_GENES, Ensembl has lots of different types (lincRNA_gene etc)
+        # Ensembl treats pseudogene as a transcript (has parent)
+        if parent_id is None and (feature.type in self.GFF3_GENES or "gene_id" in feature.attr):
             gene_id = feature.attr.get("gene_id")
             dbxref = self._get_dbxref(feature)
             if not gene_id:
@@ -299,7 +303,7 @@ class GFF3Parser(GFFParser):
                     transcript_id = target.split()[0]
                 else:
                     # Some exons etc may be for miRNAs that have no transcript ID, so skip those (won't have parent)
-                    parent_id = feature.attr["Parent"]
+                    assert parent_id is not None
                     transcript_id = self.transcript_id_by_feature_id.get(parent_id)
 
                 if transcript_id:
@@ -310,7 +314,10 @@ class GFF3Parser(GFFParser):
                 # has a transcript_id and is child of gene (ie skip miRNA etc that is child of primary_transcript)
                 transcript_id = feature.attr.get("transcript_id")
                 if transcript_id:
-                    parent_id = feature.attr["Parent"]
+                    transcript_version = feature.attr.get("version")
+                    if transcript_version:
+                        transcript_id += "." + transcript_version
+                    assert parent_id is not None
                     gene_id = self.gene_id_by_feature_id.get(parent_id)
                     if not gene_id:
                         raise ValueError("Don't know how to handle feature type %s (not child of gene)" % feature.type)
