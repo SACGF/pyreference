@@ -359,7 +359,7 @@ class GFF3Parser(GFFParser):
 def handle_args():
     parser = ArgumentParser(description='Build a json.gz file for pyreference')
     parser.add_argument("--discard-contigs-with-underscores", action='store_true', default=True)
-    group.add_argument('--url', help='URL (source of GFF) to store in "reference_gtf.url"')
+    parser.add_argument('--url', help='URL (source of GFF) to store in "reference_gtf.url"')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--gtf', help='GTF (Gene Transfer Format) filename')
     group.add_argument('--gff3', help='GFF3 (Gene Feature Format) filename')
@@ -389,7 +389,7 @@ def main():
                             discard_contigs_with_underscores=args.discard_contigs_with_underscores)
     data = parser.get_data()
     if args.url:
-        data["reference_gtf"]["url"] = url
+        data["reference_gtf"]["url"] = args.url
 
     genes_json_gz = name_from_file_name(parser.filename) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
