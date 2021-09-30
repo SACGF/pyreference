@@ -289,11 +289,17 @@ class GFF3Parser(GFFParser):
                 raise ValueError("Could not obtain 'gene_id', tried 'gene_id' and 'Dbxref[GeneID]'")
 
             gene_name = feature.attr.get("Name")
-            gene = self._create_gene(gene_name, feature)
+            # Gene can have multiple loci, thus entries in GFF, keep original so all transcripts are added
+            gene = self.genes_by_id.get(gene_id)
+            if gene is None:
+                gene = self._create_gene(gene_name, feature)
+                # If a gene already exists - then need to merge it...
+                self.genes_by_id[gene_id] = gene
+
             hgnc = dbxref.get("HGNC")
             if hgnc:
                 gene["HGNC"] = hgnc
-            self.genes_by_id[gene_id] = gene
+
             if gene_name:
                 self.gene_id_by_name[gene_name] = gene_id
             self.gene_id_by_feature_id[feature.attr["ID"]] = gene_id
