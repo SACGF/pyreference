@@ -369,7 +369,10 @@ def handle_args():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--gtf', help='GTF (Gene Transfer Format) filename')
     group.add_argument('--gff3', help='GFF3 (Gene Feature Format) filename')
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.gtf or args.gff3:
+        parser.error("You must specify either --gtf or --gff3")
+    return args
 
 
 def parser_factory(gtf=None, gff3=None, discard_contigs_with_underscores=True):
