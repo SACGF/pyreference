@@ -119,6 +119,12 @@ class GFFParser(abc.ABC):
         feature_dict = {START: feature.iv.start,
                         END: feature.iv.end}
         if feature.type == "cDNA_match":
+            target = feature.attr.get("Target")
+            t_cols = target.split()
+            feature_dict["cdna_start"] = int(t_cols[1])
+            feature_dict["cdna_end"] = int(t_cols[2])
+            if len(t_cols) == 4 and t_cols[3] != '+':  # Default is '+', so only store '-'
+                feature_dict["cdna_strand"] = t_cols[3]
             gap = feature.attr.get("Gap")
             if gap:
                 feature_dict["gap"] = gap
@@ -370,7 +376,7 @@ def handle_args():
     group.add_argument('--gtf', help='GTF (Gene Transfer Format) filename')
     group.add_argument('--gff3', help='GFF3 (Gene Feature Format) filename')
     args = parser.parse_args()
-    if not args.gtf or args.gff3:
+    if not (args.gtf or args.gff3):
         parser.error("You must specify either --gtf or --gff3")
     return args
 
