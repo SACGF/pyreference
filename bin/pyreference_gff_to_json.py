@@ -175,7 +175,8 @@ class GFFParser(abc.ABC):
 
                     if exon_end > cds_max:
                         start_non_coding = max(cds_max, exon_start)
-                        transcript["cds_end"] = start_non_coding
+                        if exon_start <= cds_max:
+                            transcript["cds_end"] = start_non_coding
                         utr_feature = {START: start_non_coding,
                                        END: exon_end}
                         features_by_type[right].append(utr_feature)
