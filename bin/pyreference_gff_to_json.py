@@ -160,6 +160,9 @@ class GFFParser(abc.ABC):
                 cds_min = cds_extent[START]
                 cds_max = cds_extent[END]
 
+                transcript["cds_start"] = cds_min
+                transcript["cds_end"] = cds_max
+
                 # exon is in stranded order
                 for exon in features_by_type["exon"]:
                     exon_start = exon[START]
@@ -167,16 +170,12 @@ class GFFParser(abc.ABC):
 
                     if exon_start < cds_min:
                         end_non_coding = min(cds_min, exon_end)
-                        transcript["cds_start"] = end_non_coding
-
                         utr_feature = {START: exon_start,
                                        END: end_non_coding}
                         features_by_type[left].append(utr_feature)
 
                     if exon_end > cds_max:
                         start_non_coding = max(cds_max, exon_start)
-                        if exon_start <= cds_max:
-                            transcript["cds_end"] = start_non_coding
                         utr_feature = {START: start_non_coding,
                                        END: exon_end}
                         features_by_type[right].append(utr_feature)
