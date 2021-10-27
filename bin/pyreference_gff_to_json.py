@@ -105,6 +105,12 @@ class GFFParser(abc.ABC):
         }
 
     @staticmethod
+    def _store_other_chrom(data, feature):
+        other_chroms = data.get("other_chroms", set())
+        other_chroms.add(feature.iv.chrom)
+        data["other_chroms"] = other_chroms
+
+    @staticmethod
     def _get_biotype_from_transcript_id(transcript_id):
         biotypes_by_transcript_id_start = {"NM_": "protein_coding", "NR_": "non_coding"}
         for (start, biotype) in biotypes_by_transcript_id_start.items():
@@ -116,6 +122,10 @@ class GFFParser(abc.ABC):
         return "N/A"
 
     def _add_transcript_data(self, transcript_id, transcript, feature):
+        if feature.iv.chrom != transcript[CHROM]:
+            self._store_other_chrom(transcript, feature)
+            return
+
         feature_dict = {START: feature.iv.start,
                         END: feature.iv.end}
         if feature.type == "cDNA_match":
@@ -257,13 +267,16 @@ class GTFParser(GFFParser):
 
     @staticmethod
     def _update_extents(genomic_region_dict, feature):
-        start = genomic_region_dict[START]
-        if feature.iv.start < start:
-            genomic_region_dict[START] = feature.iv.start
+        if feature.iv.chrom == genomic_region_dict[CHROM]:
+            start = genomic_region_dict[START]
+            if feature.iv.start < start:
+                genomic_region_dict[START] = feature.iv.start
 
-        end = genomic_region_dict[END]
-        if feature.iv.end > end:
-            genomic_region_dict[END] = feature.iv.end
+            end = genomic_region_dict[END]
+            if feature.iv.end > end:
+                genomic_region_dict[END] = feature.iv.end
+        else:
+            self._store_other_chrom(genomic_region_dict, feature)
 
 
 class GFF3Parser(GFFParser):
@@ -350,21 +363,21 @@ class GFF3Parser(GFFParser):
         return dbxref
 
     def _handle_transcript(self, gene, transcript_id, feature):
-        # print("_handle_transcript(%s, %s)" % (gene, feature))
-        transcript = self._create_transcript(feature)
-        biotype = self._get_biotype_from_transcript_id(transcript_id)
-        gene["transcripts"].add(transcript_id)
-        gene["biotype"].add(biotype)
-        transcript["biotype"].add(biotype)
-        partial = feature.attr.get("partial")
-        if partial:
-            transcript["partial"] = 1
-        self.transcripts_by_id[transcript_id] = transcript
+        """ Sometimes we can get multiple transcripts in the same file - just taking 1st """
+        if transcript_id not in self.transcripts_by_id:
+            # print("_handle_transcript(%s, %s)" % (gene, feature))
+            transcript = self._create_transcript(feature)
+            biotype = self._get_biotype_from_transcript_id(transcript_id)
+            gene["transcripts"].add(transcript_id)
+            gene["biotype"].add(biotype)
+            transcript["biotype"].add(biotype)
+            partial = feature.attr.get("partial")
+            if partial:
+                transcript["partial"] = 1
+            self.transcripts_by_id[transcript_id] = transcript
         self.transcript_id_by_feature_id[feature.attr["ID"]] = transcript_id
-        return transcript
 
     def _handle_transcript_data(self, transcript_id, transcript, feature):
-        # print("_handle_transcript_data(%s, %s)" % (transcript, feature))
         self._add_transcript_data(transcript_id, transcript, feature)
 
 
