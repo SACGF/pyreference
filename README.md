@@ -48,12 +48,22 @@ This takes less than 4 seconds to load via a network drive on my machine.
 
     sudo pip install pyreference
 
+Choose your annotation:
+
+    # Latest Ensembl GRCh37
+    wget ftp://ftp.ensembl.org/pub/grch37/release-87/gff3/homo_sapiens/Homo_sapiens.GRCh37.87.gff3.gz
+
+    # Latest Ensembl GRCh38
+    wget ftp://ftp.ensembl.org/pub/release-104/gff3/homo_sapiens/Homo_sapiens.GRCh38.104.gff3.gz
+
+    # Latest RefSeq GRCh37
+    wget http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/105.20201022/GCF_000001405.25_GRCh37.p13/GCF_000001405.25_GRCh37.p13_genomic.gff.gz
+
+    # Latest RefSeq GRCh38
+    http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz
+
 Pre-process your GFF3 or GTF files to create genes.gtf.json.gz (~1/20th the size of the input GTF file)
-
-    pyreference_gff_to_json.py --gtf genes.gtf
-
-or
-
+    
     pyreference_gff_to_json.py --gff3 genes.gff.gz
 
 Create a ~/pyreference.cfg file pointing to your references.
@@ -77,7 +87,6 @@ Create a ~/pyreference.cfg file pointing to your references.
 Substitute ArgumentParser with pyreference.ReferenceArgumentParser to add a --build option to your command line arguments. 
 
 args.reference is now initialised to the correct build/annotation.
-
 
 	from pyreference import ReferenceArgumentParser
 
