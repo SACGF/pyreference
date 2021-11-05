@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(name='pyreference',
       packages=find_packages(),
-      version='0.5',
+      version='0.6',
       description='Library for working with reference genomes',
       author='David Lawrence',
       author_email='davmlaw@gmail.com',
