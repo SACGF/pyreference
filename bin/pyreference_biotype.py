@@ -5,7 +5,7 @@ from __future__ import print_function, absolute_import
 import HTSeq
 import abc
 from argparse import ArgumentParser
-from collections import Counter
+from collections import Counter, defaultdict
 import csv
 import logging
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -35,7 +35,7 @@ def handle_args():
 
 
 def get_length_counts(bam, regions_array, has_chr, reverse_strand):
-    length_counters = [Counter() for _ in range(MAX_READ_LENGTH + 1)]
+    length_counters = defaultdict(Counter)
 
     for aln in HTSeq.BAM_Reader(bam):
         length = len(aln.read)
@@ -130,9 +130,10 @@ def main():
     print("Loaded reference - reading BAM")
     length_counters = get_length_counts(args.bam, regions_array, reference.has_chr, args.reverse_strand)
 
+    # Find min/max position used
     start = six.MAXSIZE
     end = 0
-    for (i, c) in enumerate(length_counters):
+    for i, c in length_counters.items():
         if len(c):
             start = min(start, i)
             end = max(end, i)
@@ -377,7 +378,7 @@ def write_csv_dict(csv_file, headers, rows, extrasaction=None, dialect=None):
     if dialect is None:
         dialect = 'excel'
 
-    f = file_or_file_name(csv_file, "wb")
+    f = file_or_file_name(csv_file, "w")
 
     writer = csv.DictWriter(f, headers, extrasaction=extrasaction, dialect=dialect)
     writer.writerow(dict(zip(headers, headers)))

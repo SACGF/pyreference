@@ -119,7 +119,7 @@ class GFFParser(abc.ABC):
 
         if "tRNA" in transcript_id:
             return "tRNA"
-        return "N/A"
+        return None
 
     def _add_transcript_data(self, transcript_id, transcript, feature):
         if feature.iv.chrom != transcript[CHROM]:
@@ -366,11 +366,12 @@ class GFF3Parser(GFFParser):
         """ Sometimes we can get multiple transcripts in the same file - just taking 1st """
         if transcript_id not in self.transcripts_by_id:
             # print("_handle_transcript(%s, %s)" % (gene, feature))
+            gene["transcripts"].add(transcript_id)
             transcript = self._create_transcript(feature)
             biotype = self._get_biotype_from_transcript_id(transcript_id)
-            gene["transcripts"].add(transcript_id)
-            gene["biotype"].add(biotype)
-            transcript["biotype"].add(biotype)
+            if biotype:
+                gene["biotype"].add(biotype)
+                transcript["biotype"].add(biotype)
             partial = feature.attr.get("partial")
             if partial:
                 transcript["partial"] = 1
