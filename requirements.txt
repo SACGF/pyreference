@@ -1,6 +1,6 @@
 biopython
 configargparse
 deprecation
-HTSeq
+HTSeq==0.13.5
 lazy
 pysam
