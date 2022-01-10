@@ -64,6 +64,10 @@ def create_biotype_regions_array(reference, interesting_biotypes=None):
     """ genes_by_biotype : dict of {"biotype" : genes[]}
         interesting_biotypes : List of Strings corresponding to biotype keys (everything else is 'other') """
 
+    # In HTSeq v1.99.2 "auto" GenomicArrays create non-infinite chromosome arrays if 1st accessed via a set
+    # so you can get IndexError: stop too large accessing the array later, see https://github.com/htseq/htseq/issues/38
+    chromosomes = set()
+
     if interesting_biotypes is None:
         interesting_biotypes = ['protein_coding', 'rRNA', 'lincRNA', 'misc_RNA', 'snRNA', 'miRNA', 'snoRNA', 'tRNA']
 
@@ -85,6 +89,10 @@ def create_biotype_regions_array(reference, interesting_biotypes=None):
         # Antisense: Read is in the region of a transcript, but on the opposite strand.
         antisense_iv = transcript.iv.copy()
         antisense_iv.strand = opposite_strand(antisense_iv.strand)
+
+        # This should make all chroms as we're iterating through all transcripts above
+        if antisense_iv.chrom not in regions.chrom_vectors:
+            regions.add_chrom(antisense_iv.chrom)
         regions[antisense_iv] = "anti-sense"
 
     for gene in six.itervalues(reference.genes):
