@@ -4,31 +4,20 @@ Created on 22Jan.,2018
 
 @author: dlawrence
 """
-
 from __future__ import print_function, absolute_import
-
-import HTSeq
-import abc
 from argparse import ArgumentParser
 from collections import Counter, defaultdict
-import csv
-import logging
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-from matplotlib.cm import ScalarMappable
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
-import os
 from pyreference import Reference
 from pyreference.utils import iv_iterators
-from pyreference.utils.file_utils import name_from_file_name, file_or_file_name, \
-    mk_path_for_file
+from pyreference.utils.file_utils import name_from_file_name, mk_path_for_file
 from pyreference.utils.genomics_utils import opposite_strand, format_chrom
-import six
-import seaborn as sns
-import pandas as pd
+import HTSeq
 import numpy as np
-
-MAX_READ_LENGTH = 200
+import pandas as pd
+import seaborn as sns
+import six
 
 
 def handle_args():
