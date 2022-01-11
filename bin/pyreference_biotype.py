@@ -164,8 +164,18 @@ def main():
     if args.intervals:
         biotype_colors[args.intervals_name] = "lightgreen"
     
-    #Add empty columns for those which had zero counts
+    #Add empty columns (biotypes) for those which had zero counts
     df[sorted(set(biotype_colors.keys()).difference(df.columns))] = 0
+    
+    #Add empty rows (read lengths) for those which had zero counts
+    smallest = min(df.index)
+    largest = max(df.index)
+    all_read_lengths = range(smallest, largest + 1)
+    missing_read_lengths = (sorted(set(all_read_lengths).difference(df.index)))
+    
+    for i in missing_read_lengths: 
+        df = df.append(pd.Series(name=i, index=df.columns, data=0))
+    df = df.sort_index()
     df.to_csv(csv_file)
     
     ### Graph data ###
