@@ -1,5 +1,7 @@
 ## PyReference ##
 
+[![PyPi version](https://img.shields.io/pypi/v/pyreference.svg)](https://pypi.org/project/pyreference/) [![Python versions](https://img.shields.io/pypi/pyversions/pyreference.svg)](https://pypi.org/project/pyreference/) [![PyReference](https://img.shields.io/pypi/dm/pyreference.svg)](https://pypi.org/project/pyreference/)
+
 A Python library for working with reference gene annotations.
 
 PyReference loads GTF annotations extremely rapidly, and makes it easy to write code which can be run against different genomes.
