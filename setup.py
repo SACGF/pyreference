@@ -3,8 +3,10 @@ from setuptools import find_packages
 
 setup(name='pyreference',
       packages=find_packages(),
-      version='0.6.1',
+      version='0.6.2',
       description='Library for working with reference genomes and gene GTF/GFFs',
+      long_description_content_type="text/markdown",
+      long_description=open("README.md").read(),
       author='David Lawrence',
       author_email='davmlaw@gmail.com',
       url='https://github.com/SACGF/pyreference',
