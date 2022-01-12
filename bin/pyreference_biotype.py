@@ -20,14 +20,18 @@ def handle_args():
     parser = ArgumentParser(description='Collect stats on read length and biotype')
     parser.add_argument("--intervals", help='.bed/.gtf etc file')
     parser.add_argument("--intervals-name", help="Used in graphs")
+    parser.add_argument("--reverse-strand", action='store_true',
+                        help="Reverse strand before testing region, useful when you have stranded sequencing and "
+                             "the read sequenced is anti-sense")
     parser.add_argument("bam")
     return parser.parse_args()
 
 
-def get_counts_by_length(bam, regions_array, has_chr):
+def get_counts_by_length(bam, regions_array, has_chr, reverse_strand):
     """ bam: bam file path
         regions_array: genomic array of biotypes which is the output from create_biotype_regions_array
         has_chr: Boolean, do reference chromosome names have "chr"? Can be obtained using reference.has_chr
+        reverse_strand: switch the strand of the alignment before counting reads
         Returns: pandas dataframe of counts for each biotype for each read length."""
     
     length_counters = defaultdict(Counter)
@@ -37,6 +41,8 @@ def get_counts_by_length(bam, regions_array, has_chr):
         read_region = None
         if aln.aligned:
             aln.iv.chrom = format_chrom(aln.iv.chrom, has_chr)
+            if reverse_strand:
+                aln.iv.strand = opposite_strand(aln.iv.strand)
 
             region_overlap_length = 0
             for iv, r in regions_array[aln.iv].steps():
