@@ -259,7 +259,10 @@ class GTFParser(GFFParser):
 
             biotype = feature.attr.get("gene_biotype")
             if biotype is None:
-                biotype = self._get_biotype_from_transcript_id(transcript_id)
+                biotype = feature.attr.get("gene_type") #Ensembl GTFs store biotype info under gene_type or transcript_type
+                
+                if biotype is None:
+                    biotype = self._get_biotype_from_transcript_id(transcript_id)
 
             if biotype:
                 gene["biotype"].add(biotype)
