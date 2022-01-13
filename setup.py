@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(name='pyreference',
       packages=find_packages(),
-      version='0.6.2',
+      version='0.6.3',
       description='Library for working with reference genomes and gene GTF/GFFs',
       long_description_content_type="text/markdown",
       long_description=open("README.md").read(),
