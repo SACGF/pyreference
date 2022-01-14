@@ -1,4 +1,8 @@
+## Unreleased
 
+### Added
+
+- Include coding start/end transcript coordinates in JSON
 
 ## [0.6.3] - 2022-01-12
 
