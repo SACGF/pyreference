@@ -271,7 +271,7 @@ class GFFParser(abc.ABC):
                         "Coordinate (%d) inside deletion (%s) - no mapping possible!" % (position_1_based, gap_op))
                 offset -= length
             else:
-                raise ValueError("Unknown code in cDNA GAP: %s" % gap_op")
+                raise ValueError("Unknown code in cDNA GAP: %s" % gap_op)
 
             if cdna_match_index > position_1_based:
                 break
