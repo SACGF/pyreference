@@ -7,6 +7,7 @@ import abc
 import gzip
 import json
 import logging
+import operator
 import os
 from argparse import ArgumentParser
 from collections import defaultdict, Counter
@@ -163,9 +164,13 @@ class GFFParser(abc.ABC):
                 transcript[IS_CODING] = 1
                 features_by_type = transcript["features_by_type"]
 
+                # Swap around labels based on strand
+                forward_strand = transcript[STRAND] == '+'
                 (left, right) = ("5PUTR", "3PUTR")
-                if transcript[STRAND] == '-':  # Switch
+                (coding_left, coding_right) = ("start_codon_transcript_pos", "stop_codon_transcript_pos")
+                if not forward_strand:  # Switch
                     (left, right) = (right, left)
+                    (coding_left, coding_right) = (coding_right, coding_left)
 
                 cds_min = cds_extent[START]
                 cds_max = cds_extent[END]
@@ -173,7 +178,29 @@ class GFFParser(abc.ABC):
                 transcript["cds_start"] = cds_min
                 transcript["cds_end"] = cds_max
 
-                # exon is in stranded order
+                # Store coding start/stop transcript positions
+                # For RefSeq, we need to deal with alignment gaps, so easiest is to convert exons w/o gaps
+                # into cDNA match objects, so the same objects/algorithm can be used
+                cdna_matches = features_by_type.get("cDNA_match")
+                if cdna_matches:
+                    ordered_cdna_matches = cdna_matches
+                    ordered_cdna_matches.sort(key=lambda l: l["start"])
+                    if not forward_strand:
+                        ordered_cdna_matches.reverse()
+                else:
+                    ordered_exons = features_by_type["exon"]
+                    ordered_exons.sort(key=lambda l: l["start"])
+                    if not forward_strand:
+                        ordered_exons.reverse()
+                    ordered_cdna_matches = self._perfect_exons_to_cdna_match(ordered_exons)
+                try:
+                    transcript[coding_left] = GFFParser._get_transcript_position(forward_strand, ordered_cdna_matches,
+                                                                                 cds_min)
+                    transcript[coding_right] = GFFParser._get_transcript_position(forward_strand, ordered_cdna_matches,
+                                                                                  cds_max)
+                except Exception as e:
+                    logging.warning("Couldn't set coding start/end transcript positions: %s", e)
+
                 for exon in features_by_type["exon"]:
                     exon_start = exon[START]
                     exon_end = exon[END]
@@ -189,6 +216,90 @@ class GFFParser(abc.ABC):
                         utr_feature = {START: start_non_coding,
                                        END: exon_end}
                         features_by_type[right].append(utr_feature)
+
+    @staticmethod
+    def _perfect_exons_to_cdna_match(ordered_exons):
+        """ Perfectly matched exons are basically a no-gap case of cDNA match """
+        cdna_match = []
+        cdna_start = 1
+        for exon in ordered_exons:
+            exon_start = exon[START]
+            exon_end = exon[END]
+            exon_length = exon_end - exon_start
+            cdna_end = cdna_start + exon_length - 1
+            cdna_match.append({
+                'start': exon_start,
+                'stop': exon_end,
+                'cdna_start': cdna_start,
+                'cdna_end': cdna_end,
+                # No 'gap' - as perfectly aligned
+            })
+            cdna_start = cdna_end + 1
+        return cdna_match
+
+    @staticmethod
+    def get_cdna_match_offset(cdna_match_gap, position: int, validate=True):
+        """ cdna_match GAP attribute looks like: 'M185 I3 M250' which is code/length
+            @see https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md#the-gap-attribute
+            codes operation
+            M 	match
+            I 	insert a gap into the reference sequence
+            D 	insert a gap into the target (delete from reference)
+
+            If you want the whole exon, then pass the end
+        """
+
+        if not cdna_match_gap:
+            return 0
+
+        position_1_based = position + 1
+        cdna_match_index = 1
+        offset = 0
+        for gap_op in cdna_match_gap.split():
+            code = gap_op[0]
+            length = int(gap_op[1:])
+            if code == "M":
+                cdna_match_index += length
+            elif code == "I":
+                if validate and position_1_based < cdna_match_index + length:
+                    raise ValueError(
+                        "Coordinate (%d) inside insertion (%s) - no mapping possible!" % (position_1_based, gap_op))
+                offset += length
+            elif code == "D":
+                if validate and position < cdna_match_index + length:
+                    raise ValueError(
+                        "Coordinate (%d) inside deletion (%s) - no mapping possible!" % (position_1_based, gap_op))
+                offset -= length
+            else:
+                raise ValueError("Unknown code in cDNA GAP: %s" % gap_op")
+
+            if cdna_match_index > position_1_based:
+                break
+
+        return offset
+
+    @staticmethod
+    def _get_transcript_position(transcript_strand, ordered_cdna_matches, genomic_coordinate, label=None):
+        cdna_offset = 0
+        for cdna_match in ordered_cdna_matches:
+            exon_start = cdna_match['start']
+            exon_end = cdna_match['stop']
+            cdna_start = cdna_match['cdna_start']
+            cdna_end = cdna_match['cdna_end']
+            cdna_match_gap = cdna_match.get('gap')  # Not there for perfectly aligned exons
+            if exon_start <= genomic_coordinate <= exon_end:
+                # We're inside this match
+                if transcript_strand:
+                    position = genomic_coordinate - exon_start
+                else:
+                    position = exon_end - genomic_coordinate
+                return cdna_offset + position + GFFParser.get_cdna_match_offset(cdna_match_gap, position)
+            else:
+                length = cdna_end - cdna_start + 1
+                cdna_offset += length
+        if label is None:
+            label = "Genomic coordinate: %d" % genomic_coordinate
+        raise ValueError('%s is not in any of the exons' % label)
 
     def get_data(self):
         self.parse()
