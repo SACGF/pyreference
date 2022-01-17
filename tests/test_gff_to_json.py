@@ -1,14 +1,16 @@
 
 import os
+from inspect import getsourcefile
 import unittest
 from bin.pyreference_gff_to_json import parser_factory
 
 
 class Test(unittest.TestCase):
-    base_dir = os.path.join(os.path.dirname(__file__), "..")
-    ENSEMBL_GTF_FILENAME = os.path.join(base_dir, "pyreference", "tests", "reference", "ensembl_test.GRCh38.104.gtf")
-    REFSEQ_GFF3_FILENAME = os.path.join(base_dir, "pyreference", "tests", "reference", "refseq_test.GRCh38.p13_genomic.109.20210514.gff")
-    UCSC_GTF_FILENAME = os.path.join(base_dir, "pyreference", "tests", "reference", "hg19_chrY_300kb_genes.gtf")
+    this_file_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda: 0)))
+    reference_dir = os.path.join(this_file_dir, "reference")
+    ENSEMBL_GTF_FILENAME = os.path.join(reference_dir, "ensembl_test.GRCh38.104.gtf")
+    REFSEQ_GFF3_FILENAME = os.path.join(reference_dir, "refseq_test.GRCh38.p13_genomic.109.20210514.gff")
+    UCSC_GTF_FILENAME = os.path.join(reference_dir, "hg19_chrY_300kb_genes.gtf")
 
     def _test_exon_length(self, data, transcript_id, expected_length):
         transcript = data["transcripts_by_id"][transcript_id]
