@@ -14,10 +14,8 @@ class Test(unittest.TestCase):
 
     def _test_exon_length(self, data, transcript_id, expected_length):
         transcript = data["transcripts_by_id"][transcript_id]
-        exons = transcript["features_by_type"]["exon"]
-        length = sum([d["stop"] - d["start"] for d in exons])
+        length = sum([exon[1] - exon[0] for exon in transcript["exons"]])
         self.assertEquals(expected_length, length, "%s exons sum" % transcript_id)
-
 
     def test_ucsc_gtf(self):
         parser = parser_factory(gtf=self.UCSC_GTF_FILENAME)
@@ -29,8 +27,24 @@ class Test(unittest.TestCase):
         data = parser.get_data()
         self._test_exon_length(data, "ENST00000357654.9", 7088)
 
-
     def test_refseq_gff3(self):
         parser = parser_factory(gff3=self.REFSEQ_GFF3_FILENAME)
         data = parser.get_data()
         self._test_exon_length(data, "NM_007294.4", 7088)
+
+    def test_exons_in_genomic_order(self):
+        parser = parser_factory(gtf=self.ENSEMBL_GTF_FILENAME)
+        data = parser.get_data()
+        transcript = data["transcripts_by_id"]["ENST00000357654.9"]
+        first_exon = transcript["exons"][0]
+        last_exon = transcript["exons"][-1]
+        self.assertGreater(last_exon[0], first_exon[0])
+
+        parser = parser_factory(gff3=self.REFSEQ_GFF3_FILENAME)
+        data = parser.get_data()
+        transcript = data["transcripts_by_id"]["NM_007294.4"]
+        first_exon = transcript["exons"][0]
+        last_exon = transcript["exons"][-1]
+        self.assertGreater(last_exon[0], first_exon[0])
+
+

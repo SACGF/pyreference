@@ -1,8 +1,13 @@
 ## Unreleased
 
-### Added
+### Changed
 
-- Include coding start/end transcript coordinates in JSON
+- JSON Schema changed:
+  - Include start_codon/stop_codon (in transcript coordinates) in JSON
+  - chrom -> contig
+  - Instead of "features_by_type" we now only store exons (other features re-generated at load time)
+  - cDNA_match and exons have been combined into new exons
+  - We use tuples (start, stop) rather than {"start": start, "stop": stop} to save space
 
 ## [0.6.3] - 2022-01-12
 

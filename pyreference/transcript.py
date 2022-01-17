@@ -1,11 +1,11 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
-#from from deprecation import deprecated
+from collections import defaultdict
 from lazy import lazy
 
 from pyreference.genomic_region import GenomicRegion
-from pyreference.settings import START, END, IS_CODING, CHROM, STRAND
+from pyreference.settings import START, END, CONTIG, STRAND
 from pyreference.utils.genomics_utils import GenomicInterval_from_directional, dict_to_iv
 
 
@@ -23,13 +23,16 @@ class Transcript(GenomicRegion):
     def get_gene_id(self):
         return self.gene.get_id() 
 
-    @property
+    @lazy
     def is_coding(self):
-        return self._dict[IS_CODING]
+        return "start_codon" in self._dict
+
+    @property
+    def is_forward_strand(self):
+        return self._dict["strand"] == "+"
 
     def get_representative_transcript(self):
         return self
-
 
     def get_features_length(self, feature_type):
         length = 0
@@ -37,7 +40,6 @@ class Transcript(GenomicRegion):
             length += feature[END] - feature[START] 
         return length
 
-    #@deprecated(details="Use get_features_in_stranded_order")
     def get_features(self, feature_type):
         """ returns list of HTSeq.GenomicFeature """
         genomic_features = []
@@ -48,35 +50,90 @@ class Transcript(GenomicRegion):
         
         return genomic_features 
 
+    @lazy
+    def features_by_type(self):
+        """ These are redundant so we re-generate them from JSON """
+        fbt = defaultdict(list)
+
+        # All in genomic order
+        (left_utr, right_utr) = ("5PUTR", "3PUTR")
+        if not self.is_forward_strand:  # Switch
+            (left_utr, right_utr) = (right_utr, left_utr)
+
+        cds_start = self._dict.get("cds_start")
+        cds_end = self._dict.get("cds_end")
+
+        if self.is_coding:
+            left_codon_feature = {START: cds_start, END: cds_start+3}
+            right_codon_feature = {START: cds_end - 3, END: cds_end}
+            # cds_start/cds_end INCLUDE the start/stop codons, while the "CDS" features only includes start_codon
+            cds_feature_start = cds_start
+            cds_feature_end = cds_end
+            if self.is_forward_strand:
+                fbt["start_codon"].append(left_codon_feature)
+                fbt["stop_codon"].append(right_codon_feature)
+                cds_feature_end -= 3
+            else:
+                fbt["start_codon"].append(right_codon_feature)
+                fbt["stop_codon"].append(left_codon_feature)
+                cds_feature_start += 3
+        else:
+            cds_feature_start = None
+            cds_feature_end = None
+
+        for exon in self._dict["exons"]:  # exons in genomic order
+            exon_start = exon[0]
+            exon_end = exon[1]
+            exon_feature = {
+                START: exon_start,
+                END: exon_end,
+            }
+            fbt["exon"].append(exon_feature)
+
+            if self.is_coding:
+                if exon_start <= cds_feature_end and exon_end >= cds_feature_start:
+                    start_coding = max(cds_feature_start, exon_start)
+                    stop_coding = min(cds_feature_end, exon_end)
+
+                    cds_feature = {START: start_coding,
+                                   END: stop_coding}
+                    fbt["CDS"].append(cds_feature)
+
+                if exon_start < cds_start:
+                    end_non_coding = min(cds_start, exon_end)
+                    utr_feature = {START: exon_start,
+                                   END: end_non_coding}
+                    fbt[left_utr].append(utr_feature)
+
+                if exon_end > cds_end:
+                    start_non_coding = max(cds_end, exon_start)
+                    utr_feature = {START: start_non_coding,
+                                   END: exon_end}
+                    fbt[right_utr].append(utr_feature)
+
+        return fbt
 
     def get_features_in_stranded_order(self, feature_type):
         """features returned sorted 5' -> 3' """
 
         is_reversed = self._dict["strand"] == '-'
-        if is_reversed:
-            stranded_start = END
-        else:
-            stranded_start = START
-            
-        features_by_type = self._dict["features_by_type"]
-        features = features_by_type.get(feature_type, [])
+        features = self.features_by_type.get(feature_type, [])
         if features:
             # Need to add this as not in there by default
-            transcript_chrom = self._dict[CHROM]
+            transcript_chrom = self._dict[CONTIG]
             transcript_strand = self._dict[STRAND]
 
             for f in features:
-                f[CHROM] = transcript_chrom
+                f[CONTIG] = transcript_chrom
                 f[STRAND] = transcript_strand
 
-            features = sorted(features, key=lambda x : x[stranded_start], reverse=is_reversed)
+            features = sorted(features, key=lambda x: x[START], reverse=is_reversed)
         return features
 
     @lazy
     def length(self):
-        return self.get_features_length("exon")
-    
-    #@deprecated(details="Use Transcript.length")
+        return sum([exon[1] - exon[0] for exon in self._dict["exons"]])
+
     def get_transcript_length(self):
         return self.length
 
@@ -102,7 +159,6 @@ class Transcript(GenomicRegion):
         """ Returns the exon regions which contain 5'UTR as list of features """
         return self.get_features("5PUTR")
 
-    
     def get_coding_sequence(self):
         """ Warning: There are frame shift issues not handled here.
             Do not naively turn this into a protein - better to use existing databases """
@@ -143,7 +199,6 @@ class Transcript(GenomicRegion):
         for intron in list_of_intron_intervals:
             intron_sequences.append(self.reference.get_sequence_from_iv(intron))
         return intron_sequences
-    
     
     def get_genomic_position(self, pos_on_transcript):
         """

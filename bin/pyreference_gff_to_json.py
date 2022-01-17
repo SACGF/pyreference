@@ -12,13 +12,13 @@ import os
 from argparse import ArgumentParser
 from collections import defaultdict, Counter
 
-from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, \
-    PYREFERENCE_JSON_VERSION_KEY
-from pyreference.utils.file_utils import name_from_file_name, file_md5sum
+import pyreference
+from pyreference.settings import CONTIG, START, END, STRAND, PYREFERENCE_JSON_VERSION_KEY
+from pyreference.utils.file_utils import stem_from_file_name, file_md5sum
 
 
 class GFFParser(abc.ABC):
-    CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}
+    CODING_FEATURES = {"CDS", "start_codon", "stop_codon"}  # Use these to work out cds_start/cds_end
     FEATURE_ALLOW_LIST = {}
     FEATURE_IGNORE_LIST = {"biological_region", "chromosome", "region", "scaffold", "supercontig"}
 
@@ -30,8 +30,8 @@ class GFFParser(abc.ABC):
         self.genes_by_id = {}
         self.transcripts_by_id = {}
         self.gene_id_by_name = {}
-        # Store CDS in separate dict as we don't need to write as JSON
-        self.transcript_cds_by_id = {}
+        # Store features in separate dict as we don't need to write all as JSON
+        self.transcript_features_by_type = defaultdict(lambda: defaultdict(list))
 
     @abc.abstractmethod
     def handle_feature(self, feature):
@@ -45,9 +45,9 @@ class GFFParser(abc.ABC):
                 continue
 
             try:
-                chrom = feature.iv.chrom
-                if self.discard_contigs_with_underscores and not chrom.startswith("NC_") and "_" in chrom:
-                    self.discarded_contigs[chrom] += 1
+                contig = feature.iv.chrom
+                if self.discard_contigs_with_underscores and not contig.startswith("NC_") and "_" in contig:
+                    self.discarded_contigs[contig] += 1
                     continue
                 self.handle_feature(feature)
             except Exception as e:
@@ -55,11 +55,10 @@ class GFFParser(abc.ABC):
                 raise e
 
     def finish(self):
-        self._add_coding_and_utr_features()
+        self._process_coding_features()
 
         if self.discarded_contigs:
             print("Discarded contigs: %s" % self.discarded_contigs)
-
 
     @staticmethod
     def _create_gene(gene_name, feature):
@@ -69,7 +68,7 @@ class GFFParser(abc.ABC):
             "name": gene_name,
             "transcripts": set(),
             "biotype": biotypes,
-            CHROM: feature.iv.chrom,
+            CONTIG: feature.iv.chrom,
             START: feature.iv.start,
             END: feature.iv.end,
             STRAND: feature.iv.strand
@@ -96,13 +95,12 @@ class GFFParser(abc.ABC):
     @staticmethod
     def _create_transcript(feature):
         return {
-            "features_by_type": defaultdict(list),
+            "exons": [],
             "biotype": set(),
-            CHROM: feature.iv.chrom,
+            CONTIG: feature.iv.chrom,
             START: feature.iv.start,
             END: feature.iv.end,
             STRAND: feature.iv.strand,
-            IS_CODING: 0
         }
 
     @staticmethod
@@ -123,119 +121,98 @@ class GFFParser(abc.ABC):
         return None
 
     def _add_transcript_data(self, transcript_id, transcript, feature):
-        if feature.iv.chrom != transcript[CHROM]:
+        if feature.iv.chrom != transcript[CONTIG]:
             self._store_other_chrom(transcript, feature)
             return
 
-        feature_dict = {START: feature.iv.start,
-                        END: feature.iv.end}
         if feature.type == "cDNA_match":
             target = feature.attr.get("Target")
             t_cols = target.split()
-            feature_dict["cdna_start"] = int(t_cols[1])
-            feature_dict["cdna_end"] = int(t_cols[2])
+            cdna_start = int(t_cols[1])
+            cdna_end = int(t_cols[2])
             if len(t_cols) == 4 and t_cols[3] != '+':  # Default is '+', so only store '-'
                 feature_dict["cdna_strand"] = t_cols[3]
             gap = feature.attr.get("Gap")
-            if gap:
-                feature_dict["gap"] = gap
+            feature_tuple = (feature.iv.start, feature.iv.end, cdna_start, cdna_end, gap)
+        else:
+            feature_tuple = (feature.iv.start, feature.iv.end)
 
-        transcript["features_by_type"][feature.type].append(feature_dict)
+        features_by_type = self.transcript_features_by_type[transcript_id]
+        features_by_type[feature.type].append(feature_tuple)
         if feature.type in self.CODING_FEATURES:
-            cds_extent = self.transcript_cds_by_id.get(transcript_id)
-            if cds_extent is None:
-                cds_extent = {START: feature.iv.start,
-                              END: feature.iv.end}
-                self.transcript_cds_by_id[transcript_id] = cds_extent
-            else:
-                cds_extent[START] = min(cds_extent[START], feature.iv.start)
-                cds_extent[END] = max(cds_extent[END], feature.iv.end)
+            features_by_type["coding_starts"].append(feature.iv.start)
+            features_by_type["coding_ends"].append(feature.iv.end)
 
-    def _add_coding_and_utr_features(self):
-        """ Add 5PUTR/3PUTR features to coding transcripts
-
-            Ensembl GTFs have 'five_prime_UTR' features (similar to CDS etc) but we make this for GFFs that
-            don't have those features
-        """
-
+    def _process_coding_features(self):
         for transcript_id, transcript in self.transcripts_by_id.items():
-            cds_extent = self.transcript_cds_by_id.get(transcript_id)
-            if cds_extent:
-                transcript[IS_CODING] = 1
-                features_by_type = transcript["features_by_type"]
+            features_by_type = self.transcript_features_by_type.get(transcript_id)
 
-                # Swap around labels based on strand
-                forward_strand = transcript[STRAND] == '+'
-                (left, right) = ("5PUTR", "3PUTR")
-                (coding_left, coding_right) = ("start_codon_transcript_pos", "stop_codon_transcript_pos")
-                if not forward_strand:  # Switch
-                    (left, right) = (right, left)
-                    (coding_left, coding_right) = (coding_right, coding_left)
+            # Store coding start/stop transcript positions
+            # For RefSeq, we need to deal with alignment gaps, so easiest is to convert exons w/o gaps
+            # into cDNA match objects, so the same objects/algorithm can be used
+            forward_strand = transcript[STRAND] == '+'
+            cdna_matches = features_by_type.get("cDNA_match")
+            if cdna_matches:
+                cdna_matches_stranded_order = cdna_matches
+                cdna_matches_stranded_order.sort(key=operator.itemgetter(0))
+                if not forward_strand:
+                    cdna_matches_stranded_order.reverse()
+                # Need to add exon ID
+                exons_stranded_order = self._create_cdna_exons(cdna_matches_stranded_order)
 
-                cds_min = cds_extent[START]
-                cds_max = cds_extent[END]
+            else:
+                raw_exon_stranded_order = features_by_type["exon"]
+                raw_exon_stranded_order.sort(key=operator.itemgetter(0))
+                if not forward_strand:
+                    raw_exon_stranded_order.reverse()
+                exons_stranded_order = self._create_perfect_exons(raw_exon_stranded_order)
+
+            if "coding_starts" in features_by_type:
+                cds_min = min(features_by_type["coding_starts"])
+                cds_max = max(features_by_type["coding_ends"])
 
                 transcript["cds_start"] = cds_min
                 transcript["cds_end"] = cds_max
 
-                # Store coding start/stop transcript positions
-                # For RefSeq, we need to deal with alignment gaps, so easiest is to convert exons w/o gaps
-                # into cDNA match objects, so the same objects/algorithm can be used
-                cdna_matches = features_by_type.get("cDNA_match")
-                if cdna_matches:
-                    ordered_cdna_matches = cdna_matches
-                    ordered_cdna_matches.sort(key=lambda l: l["start"])
-                    if not forward_strand:
-                        ordered_cdna_matches.reverse()
-                else:
-                    ordered_exons = features_by_type["exon"]
-                    ordered_exons.sort(key=lambda l: l["start"])
-                    if not forward_strand:
-                        ordered_exons.reverse()
-                    ordered_cdna_matches = self._perfect_exons_to_cdna_match(ordered_exons)
                 try:
-                    transcript[coding_left] = GFFParser._get_transcript_position(forward_strand, ordered_cdna_matches,
+                    (coding_left, coding_right) = ("start_codon", "stop_codon")
+                    if not forward_strand:  # Switch
+                        (coding_left, coding_right) = (coding_right, coding_left)
+                    transcript[coding_left] = GFFParser._get_transcript_position(forward_strand, exons_stranded_order,
                                                                                  cds_min)
-                    transcript[coding_right] = GFFParser._get_transcript_position(forward_strand, ordered_cdna_matches,
+                    transcript[coding_right] = GFFParser._get_transcript_position(forward_strand, exons_stranded_order,
                                                                                   cds_max)
                 except Exception as e:
                     logging.warning("Couldn't set coding start/end transcript positions: %s", e)
 
-                for exon in features_by_type["exon"]:
-                    exon_start = exon[START]
-                    exon_end = exon[END]
-
-                    if exon_start < cds_min:
-                        end_non_coding = min(cds_min, exon_end)
-                        utr_feature = {START: exon_start,
-                                       END: end_non_coding}
-                        features_by_type[left].append(utr_feature)
-
-                    if exon_end > cds_max:
-                        start_non_coding = max(cds_max, exon_start)
-                        utr_feature = {START: start_non_coding,
-                                       END: exon_end}
-                        features_by_type[right].append(utr_feature)
+            exons_genomic_order = exons_stranded_order
+            if not forward_strand:
+                exons_genomic_order.reverse()
+            transcript["exons"] = exons_genomic_order
 
     @staticmethod
-    def _perfect_exons_to_cdna_match(ordered_exons):
+    def _create_perfect_exons(raw_exon_stranded_order):
         """ Perfectly matched exons are basically a no-gap case of cDNA match """
-        cdna_match = []
+        exons = []
         cdna_start = 1
-        for exon in ordered_exons:
-            exon_start = exon[START]
-            exon_end = exon[END]
+        exon_id = 0
+        for exon_start, exon_end in raw_exon_stranded_order:
             exon_length = exon_end - exon_start
             cdna_end = cdna_start + exon_length - 1
-            cdna_match.append({
-                'start': exon_start,
-                'stop': exon_end,
-                'cdna_start': cdna_start,
-                'cdna_end': cdna_end,
-                # No 'gap' - as perfectly aligned
-            })
+            exons.append((exon_start, exon_end, exon_id, cdna_start, cdna_end, None))
             cdna_start = cdna_end + 1
-        return cdna_match
+            exon_id += 1
+        return exons
+
+    @staticmethod
+    def _create_cdna_exons(cdna_matches_stranded_order):
+        """ Adds on exon_id """
+        exons = []
+        exon_id = 0
+        for (exon_start, exon_end, cdna_start, cdna_end, gap) in cdna_matches_stranded_order:
+            exons.append((exon_start, exon_end, exon_id, cdna_start, cdna_end, gap))
+            exon_id += 1
+        return exons
 
     @staticmethod
     def get_cdna_match_offset(cdna_match_gap, position: int, validate=True):
@@ -281,12 +258,7 @@ class GFFParser(abc.ABC):
     @staticmethod
     def _get_transcript_position(transcript_strand, ordered_cdna_matches, genomic_coordinate, label=None):
         cdna_offset = 0
-        for cdna_match in ordered_cdna_matches:
-            exon_start = cdna_match['start']
-            exon_end = cdna_match['stop']
-            cdna_start = cdna_match['cdna_start']
-            cdna_end = cdna_match['cdna_end']
-            cdna_match_gap = cdna_match.get('gap')  # Not there for perfectly aligned exons
+        for (exon_start, exon_end, _exon_id, cdna_start, cdna_end, cdna_match_gap) in ordered_cdna_matches:
             if exon_start <= genomic_coordinate <= exon_end:
                 # We're inside this match
                 if transcript_strand:
@@ -310,11 +282,8 @@ class GFFParser(abc.ABC):
             for biotype in gene["biotype"]:
                 gene_ids_by_biotype[biotype].add(gene_id)
 
-        # patch = non-breaking change, otherwise breaking
-        major, minor, patch = pyreference.__version__.split(".")
-        pyreference_json_version = 1000 * int(major) + int(minor)
         return {
-            PYREFERENCE_JSON_VERSION_KEY: pyreference_json_version,
+            PYREFERENCE_JSON_VERSION_KEY: pyreference.get_json_schema_version(),
             "reference_gtf": {"path": os.path.abspath(self.filename),
                               "md5sum": file_md5sum(self.filename)},
             "genes_by_id": self.genes_by_id,
@@ -384,7 +353,7 @@ class GTFParser(GFFParser):
 
     @staticmethod
     def _update_extents(genomic_region_dict, feature):
-        if feature.iv.chrom == genomic_region_dict[CHROM]:
+        if feature.iv.chrom == genomic_region_dict[CONTIG]:
             start = genomic_region_dict[START]
             if feature.iv.start < start:
                 genomic_region_dict[START] = feature.iv.start
@@ -537,7 +506,7 @@ def main():
     if args.url:
         data["reference_gtf"]["url"] = args.url
 
-    genes_json_gz = name_from_file_name(parser.filename) + ".json.gz"
+    genes_json_gz = stem_from_file_name(parser.filename) + ".json.gz"
     with gzip.open(genes_json_gz, 'w') as outfile:
         json_str = json.dumps(data, cls=SortedSetEncoder, sort_keys=True)  # Sort so diffs work
         outfile.write(json_str.encode('ascii'))

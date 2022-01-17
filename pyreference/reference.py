@@ -12,14 +12,20 @@ from pyreference import settings
 from pyreference.gene import Gene
 from pyreference.mirna import MiRNA
 from pyreference.pyreference_config import load_params_from_config
-from pyreference.settings import BEST_REGION_TYPE_ORDER
-from pyreference.settings import CHROM, START, END, STRAND
 from pyreference.transcript import Transcript
 from pyreference.utils.genomics_utils import get_unique_features_from_genomic_array_of_sets_iv, fasta_to_hash, \
     HTSeqInterval_to_feature_dict, reverse_complement
 from pysam import FastaFile  # @UnresolvedImport
 import six
 import sys
+
+__version__ = "0.7.1"
+
+
+def get_json_schema_version():
+    """ Return an int which increments upon breaking changes - ie anything other than patch """
+    major, minor, patch = __version__.split(".")
+    return 1000 * int(major) + int(minor)
 
 
 def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
@@ -243,10 +249,10 @@ class Reference(object):
             If upper_case=True, return the sequence as upper case (Default).
             If false, do not convert case, i.e retain lower case where it was present."""
 
-        chrom = str(feature_dict[CHROM])
-        start = feature_dict[START]
-        end = feature_dict[END]
-        strand = str(feature_dict[STRAND])
+        chrom = str(feature_dict[settings.CONTIG])
+        start = feature_dict[settings.START]
+        end = feature_dict[settings.END]
+        strand = str(feature_dict[settings.STRAND])
         seq = self.genome.fetch(reference=chrom,
                                 start=start,
                                 end=end)
@@ -343,7 +349,7 @@ class Reference(object):
 
         region_names = set(self.get_regions_array(iv))
         region = None
-        for r in BEST_REGION_TYPE_ORDER:
+        for r in settings.BEST_REGION_TYPE_ORDER:
             if r in region_names:
                 region = r
                 break
@@ -357,8 +363,8 @@ class Reference(object):
     def has_chr(self):
         transcripts_by_id = self._genes_dict["transcripts_by_id"]
         some_transcript = six.next(six.itervalues(transcripts_by_id))
-        chrom = some_transcript["chr"]
-        return chrom.startswith("chr")
+        contig = some_transcript[settings.CONTIG]
+        return contig.startswith("chr")
 
     def __repr__(self):
         return "PyReference (%s)" % self.build

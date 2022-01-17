@@ -15,11 +15,13 @@ from os.path import abspath
 import six
 import unittest
 
-from pyreference import Reference
+from pyreference import Reference, settings
 
 
 class Test(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None  # Show all of diffs on error
+
         this_file_dir = os.path.dirname(abspath(getsourcefile(lambda: 0)))
         reference_dir = os.path.join(this_file_dir, "reference")
 
@@ -125,6 +127,92 @@ class Test(unittest.TestCase):
 
     def test_has_chrom(self):
         self.assertTrue(self.reference.has_chr)
+
+    def test_stranded_order(self):
+        transcript = self.reference.transcripts["NM_018390_2"]  # + strand
+        exons = transcript.get_features_in_stranded_order("exon")
+
+        first_start = exons[0][settings.START]
+        last_start = exons[-1][settings.END]
+        self.assertGreater(last_start, first_start)  # genomic first comes first
+
+        transcript = self.reference.transcripts["NM_013239"]  # - strand
+        exons = transcript.get_features_in_stranded_order("exon")
+
+        first_start = exons[0][settings.START]
+        last_start = exons[-1][settings.END]
+        self.assertGreater(first_start, last_start)  # - strand, genomic first comes last
+
+    def test_get_features_positive_strand(self):
+        """ We re-build features now from exons - test this matches GTF """
+        gtf_cds = [
+            # From GTF:
+            # grep CDS.*NM_018390_2 tests/reference/hg19_chrY_300kb_genes.gtf | cut -d$'\t' -f 1,4,5,7
+            ('chrY', 150855, 150981, '+'),
+            ('chrY', 155400, 155536, '+'),
+            ('chrY', 157315, 157443, '+'),
+            ('chrY', 158166, 158321, '+'),
+            ('chrY', 159702, 159885, '+'),
+            ('chrY', 165764, 165999, '+'),
+        ]
+        expected_cds = []
+        for (contig, start, stop, strand) in gtf_cds:
+            # Adjust start as GTF is 1-based
+            expected_cds.append({"contig": contig, "start": start-1, "stop": stop, "strand": strand})
+
+        transcript = self.reference.transcripts["NM_018390_2"]
+        print(transcript._dict)
+
+        cds_features = transcript.get_features_in_stranded_order("CDS")
+        self.assertEqual(cds_features, expected_cds)
+
+        expected_start_codon = [{"contig": "chrY", 'start': 150854, 'stop': 150857, "strand": "+"}]
+        start_codon = transcript.get_features_in_stranded_order("start_codon")
+        self.assertEqual(start_codon, expected_start_codon)
+
+        expected_stop_codon = [{"contig": "chrY", 'start': 165999, 'stop': 166002, "strand": "+"}]
+        stop_codon = transcript.get_features_in_stranded_order("stop_codon")
+        self.assertEqual(stop_codon, expected_stop_codon)
+
+
+    def test_get_features_negative_strand(self):
+        """ We re-build features now from exons - test this matches GTF """
+        gtf_cds = [
+            # From GTF:
+            # grep CDS.*NM_013239 tests/reference/hg19_chrY_300kb_genes.gtf | cut -d$'\t' -f 1,4,5,7
+            ('chrY', 245105, 245252, '-'),
+            ('chrY', 249339, 249445, '-'),
+            ('chrY', 249513, 249631, '-'),
+            ('chrY', 251500, 251675, '-'),
+            ('chrY', 252042, 252131, '-'),
+            ('chrY', 252618, 252666, '-'),
+            ('chrY', 256251, 256407, '-'),
+            ('chrY', 256909, 256995, '-'),
+            ('chrY', 257436, 257510, '-'),
+            ('chrY', 257969, 258071, '-'),
+            ('chrY', 258325, 258428, '-'),
+            ('chrY', 272140, 272325, '-'),
+            ('chrY', 297103, 297426, '-'),
+        ]
+        # Reverse as NM_013239 is -'ve strand
+        expected_cds = []
+        for (contig, start, stop, strand) in reversed(gtf_cds):
+            # Adjust start as GTF is 1-based
+            expected_cds.append({"contig": contig, "start": start-1, "stop": stop, "strand": strand})
+
+        transcript = self.reference.transcripts["NM_013239"]
+        print(transcript._dict)
+
+        cds_features = transcript.get_features_in_stranded_order("CDS")
+        self.assertEqual(cds_features, expected_cds)
+
+        expected_start_codon = [{"contig": "chrY", "start": 297423, "stop": 297426, "strand": "-"}]
+        start_codon = transcript.get_features_in_stranded_order("start_codon")
+        self.assertEqual(start_codon, expected_start_codon)
+
+        expected_stop_codon = [{"contig": "chrY", "start": 245101, "stop": 245104, "strand": "-"}]
+        stop_codon = transcript.get_features_in_stranded_order("stop_codon")
+        self.assertEqual(stop_codon, expected_stop_codon)
 
 
 if __name__ == "__main__":

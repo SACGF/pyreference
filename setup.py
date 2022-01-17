@@ -1,5 +1,13 @@
 from distutils.core import setup
 from setuptools import find_packages
+import codecs
+import os.path
+
+
+def read(rel_path):
+    here = os.path.abspath(os.path.dirname(__file__))
+    with codecs.open(os.path.join(here, rel_path), 'r') as fp:
+        return fp.read()
 
 
 def _get_version(rel_path):
@@ -13,7 +21,7 @@ def _get_version(rel_path):
 
 setup(name='pyreference',
       packages=find_packages(),
-      version=_get_version("pyreference/__init__.py"),
+      version=_get_version("pyreference/reference.py"),
       description='Library for working with reference genomes and gene GTF/GFFs',
       long_description_content_type="text/markdown",
       long_description=open("README.md").read(),

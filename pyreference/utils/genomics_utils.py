@@ -13,14 +13,14 @@ try:
 except (ImportError,AttributeError):
     pass
     
-from pyreference.settings import CHROM, START, END, STRAND
+from pyreference.settings import CONTIG, START, END, STRAND
 
 
 def HTSeqInterval_to_feature_dict(iv):
-    return {CHROM : iv.chrom, START : iv.start, END : iv.end, STRAND : iv.strand}
+    return {CONTIG : iv.chrom, START : iv.start, END : iv.end, STRAND : iv.strand}
 
 def dict_to_iv(data):
-    chrom = str(data[CHROM])
+    chrom = str(data[CONTIG])
     start = data[START]
     end = data[END]
     strand = str(data[STRAND])
