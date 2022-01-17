@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 from collections import defaultdict, Counter
 
 from pyreference.settings import CHROM, START, END, STRAND, IS_CODING, \
-    PYREFERENCE_JSON_VERSION_KEY, PYREFERENCE_JSON_VERSION
+    PYREFERENCE_JSON_VERSION_KEY
 from pyreference.utils.file_utils import name_from_file_name, file_md5sum
 
 
@@ -310,8 +310,11 @@ class GFFParser(abc.ABC):
             for biotype in gene["biotype"]:
                 gene_ids_by_biotype[biotype].add(gene_id)
 
+        # patch = non-breaking change, otherwise breaking
+        major, minor, patch = pyreference.__version__.split(".")
+        pyreference_json_version = 1000 * int(major) + int(minor)
         return {
-            PYREFERENCE_JSON_VERSION_KEY: PYREFERENCE_JSON_VERSION,
+            PYREFERENCE_JSON_VERSION_KEY: pyreference_json_version,
             "reference_gtf": {"path": os.path.abspath(self.filename),
                               "md5sum": file_md5sum(self.filename)},
             "genes_by_id": self.genes_by_id,

@@ -1,12 +1,5 @@
-"""
-Created on 23Jan.,2018
 
-@author: dlawrence
-"""
-
-
-# Change this when you introduce breaking changes
-PYREFERENCE_JSON_VERSION = 5
+# Stores JSON schema version, incrementing = incompatible
 PYREFERENCE_JSON_VERSION_KEY = "pyreference_json_version"
 
 # Keys used in dictionary (serialized to JSON)
