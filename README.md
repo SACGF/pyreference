@@ -1,6 +1,6 @@
 ## PyReference ##
 
-[![PyPi version](https://img.shields.io/pypi/v/pyreference.svg)](https://pypi.org/project/pyreference/) [![Python versions](https://img.shields.io/pypi/pyversions/pyreference.svg)](https://pypi.org/project/pyreference/) [![PyReference](https://img.shields.io/pypi/dm/pyreference.svg)](https://pypi.org/project/pyreference/)
+[![PyPi version](https://img.shields.io/pypi/v/pyreference.svg)](https://pypi.org/project/pyreference/) [![Python versions](https://img.shields.io/pypi/pyversions/pyreference.svg)](https://pypi.org/project/pyreference/)
 
 A Python library for working with reference gene annotations.
 
