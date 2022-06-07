@@ -31,10 +31,12 @@ def load_iv_iterator(file_name):
         raise ValueError("Unknown input_file_type of " + suffix)
     return iterator
 
+
 def chromosome_filter_iterator(chromosomes, iterator):
     for iv in iterator:
         if iv.chrom in chromosomes:
             yield iv
+
 
 def bam_iv_iterator(bam_file):
     for aln in HTSeq.BAM_Reader(bam_file):
@@ -46,6 +48,7 @@ def sam_iv_iterator(sam_file):
     for aln in HTSeq.SAM_Reader(sam_file):
         if aln.aligned:
             yield aln.iv
+
 
 def gff_iv_iterator(gtf_file):
     for feature in HTSeq.GFF_Reader(gtf_file):

@@ -19,6 +19,7 @@ from pyreference.settings import CONTIG, START, END, STRAND
 def HTSeqInterval_to_feature_dict(iv):
     return {CONTIG : iv.chrom, START : iv.start, END : iv.end, STRAND : iv.strand}
 
+
 def dict_to_iv(data):
     chrom = str(data[CONTIG])
     start = data[START]
@@ -31,6 +32,7 @@ def iv_from_pos_range(g_pos, range_length):
     """p = Genomic position.
     Returns iv 'range_length' bp upstream and 'range_length' downstream of position p"""
     return HTSeq.GenomicInterval( g_pos.chrom, g_pos.pos - range_length, g_pos.pos + range_length, g_pos.strand)
+
 
 def iv_from_pos_directional_before_after(g_pos, upstream_length, downstream_length):
     """Note: The g_pos base is assumed to be included in downstream_length
@@ -46,6 +48,7 @@ def iv_from_pos_directional_before_after(g_pos, upstream_length, downstream_leng
         raise ValueError("Unknown strand in genomic position %s" % g_pos)
 
     return HTSeq.GenomicInterval( g_pos.chrom, start, end, g_pos.strand)
+
 
 def GenomicInterval_from_directional( chrom, start_d, length, strand="." ):
     """ Fix bug in HTSeq:

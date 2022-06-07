@@ -177,7 +177,7 @@ class Transcript(GenomicRegion):
         """
         intron_ivs = []
         previous_exon = None
-        for exon in self.get_features("exon"): # This is in stranded order
+        for exon in self.get_features("exon"):  # This is in stranded order
             if previous_exon:
                 # HTSeq ends are 1 past the last base of the sequence.
                 # Thus for touching sequences like exons/introns, first_seq.end = second_seq.start

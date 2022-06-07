@@ -42,7 +42,6 @@ class GenomicRegion(object):
         iv = self.get_promoter_iv(promoter_range)
         return self.reference.get_sequence_from_iv(iv)
 
-
     def get_promoter_iv_custom_range(self, upstream_distance, downstream_distance):
         """Get any interval surrounding TSS
         Note: total length of interval = upstream_distance + downstream_distance (The TSS base is included in downstream_distance)"""
