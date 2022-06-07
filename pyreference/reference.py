@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
+from collections import defaultdict
 from deprecation import deprecated
 from functools import reduce
 import gzip
@@ -20,16 +21,20 @@ import six
 import sys
 
 __version__ = "0.7.1"
+CDOT_VERSION_SCHEMA = (0, 2, 0)
 
 
-def get_json_schema_version():
+def get_schema_version(version_tuple):
     """ Return an int which increments upon breaking changes - ie anything other than patch """
-    major, minor, patch = __version__.split(".")
+    major, minor, patch = version_tuple
     return 1000 * int(major) + int(minor)
 
 
 def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
     decompress_in_memory = not use_gzip_open
+    if not os.path.exists(gz_json_file_name):
+        raise FileNotFoundError("'%s' does not exist!" % gz_json_file_name)
+
     if use_gzip_open:
         try:
             with gzip.open(gz_json_file_name, "rb") as f:
@@ -56,10 +61,11 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
         json_str = json_bytes.decode('ascii')
     data = json.loads(json_str)
 
-    json_version = data[settings.PYREFERENCE_JSON_VERSION_KEY]
-    current_version = get_json_schema_version()
+    raw_json_version = data[settings.CDOT_JSON_VERSION_KEY].split(".")
+    json_version = get_schema_version(raw_json_version)
+    current_version = get_schema_version(CDOT_VERSION_SCHEMA)
     if current_version != json_version:
-        params = {"version_key": settings.PYREFERENCE_JSON_VERSION_KEY,
+        params = {"version_key": settings.CDOT_JSON_VERSION_KEY,
                   "current_version": current_version,
                   "json_version": json_version,
                   "file_name": gz_json_file_name}
@@ -77,15 +83,15 @@ class Reference(object):
             build - from pyreference config file (defaults to [global] default_build from config file) 
             config - config file (defaults to ~/pyreference.cfg)
             
-            OR pass in the file names:
-            
+            OR pass in manually:
+
+            genome_accession
             genes_json
             trna_json
             genome_sequence_fasta
             mature_mir_sequence_fasta
             
-            
-            Any passed parameters will overwrite those from the config file 
+            Any passed parameters will overwrite those from the config file
             
             stranded - interval tests are stranded? (default True) 
             
@@ -101,6 +107,7 @@ class Reference(object):
 
         # Set / Overwrite with non-null kwargs
         params.update({k: v for (k, v) in kwargs.items() if v is not None})
+        self._genome_accession = params.get("genome_accession")
         self._genes_json = params.get("genes_json")
         self._trna_json = params.get("trna_json")
         self._genome_sequence_fasta = params.get("genome_sequence_fasta")
@@ -109,10 +116,19 @@ class Reference(object):
         self.stranded = params.get("stranded", True)
 
         # Need at least this
-        if self._genes_json is None:
-            if kwargs:
-                six.raise_from(ValueError("No 'genes_json' in passed kwargs"), config_exception)
-            raise config_exception
+        REQUIRED = {
+            "genome_accession": self._genome_accession,
+            "genes_json": self._genes_json,
+        }
+
+        for key, data in REQUIRED.items():
+            if data is None:
+                message = "No '" + key + "' in"
+                if kwargs:
+                    six.raise_from(ValueError(message + " passed kwargs"), config_exception)
+                if config_exception:
+                    raise config_exception
+                raise ValueError(message + " config section '%s' in file '%s'" % (params['build'], config))
 
         # Store this so we can ask about config later
         self.build = params["build"]
@@ -124,14 +140,52 @@ class Reference(object):
         return _load_gzip_json(self._genes_json, self.use_gzip_open)
 
     def get_transcript_dict(self, transcript_id):
-        transcripts_by_id = self._genes_dict["transcripts_by_id"]
-        return transcripts_by_id[transcript_id]
+        """ Moves 'genome_build' down into 1st level of dict as we only need 1 """
+        transcripts_by_id = self._genes_dict["transcripts"]
+        tdata = transcripts_by_id[transcript_id].copy()
+        genome_build = tdata.pop("genome_builds")
+        tdata.update(genome_build[self._genome_accession])
+        exons = tdata["exons"]
+        tdata[settings.START] = exons[0][0]
+        tdata[settings.END] = exons[-1][1]
+        return tdata
+
+    @lazy
+    def _gene_id_lookups(self):
+        gene_transcripts = defaultdict(set)
+        gene_version_by_biotype = defaultdict(set)  # Set from both genes/transcripts
+        for transcript_id, tdata in self._genes_dict["transcripts"].items():
+            if gene_version := tdata["gene_version"]:
+                gene_transcripts[gene_version].add(transcript_id)
+                for biotype in tdata["biotype"]:
+                    gene_version_by_biotype[biotype].add(gene_version)
+
+        gene_version_by_symbol = {}
+        for gene_version, gdata in self._genes_dict["genes"].items():
+            if gene_symbol := gdata.get("gene_symbol"):
+                gene_version_by_symbol[gene_symbol] = gene_version
+            if biotype := gdata.get("biotype"):
+                gene_version_by_biotype[biotype].add(gene_version)
+
+        return gene_transcripts, gene_version_by_symbol, gene_version_by_biotype
+
+    @property
+    def gene_transcripts(self):
+        return self._gene_id_lookups[0]
+
+    @property
+    def gene_id_by_name(self):
+        return self._gene_id_lookups[1]
+
+    @property
+    def gene_ids_by_biotype(self):
+        return self._gene_id_lookups[2]
 
     @lazy
     def genes(self):
         """ dict of {"gene_id" : Gene} """
 
-        genes_by_id = self._genes_dict["genes_by_id"]
+        genes_by_id = self._genes_dict["genes"]
         genes = {}
         for gene_id in genes_by_id:
             genes[gene_id] = self.get_gene_by_id(gene_id)
@@ -173,11 +227,34 @@ class Reference(object):
         return genes_by_biotype
 
     def get_gene_by_id(self, gene_id):
-        genes_by_id = self._genes_dict["genes_by_id"]
+        genes_by_id = self._genes_dict["genes"]
         gene_dict = genes_by_id.get(gene_id)
         if gene_dict is None:
             msg = "No Gene found with ID=%s" % gene_id
             raise ValueError(msg)
+
+        gene_dict = gene_dict.copy()
+        # Add generated transcript array
+        transcripts = self.gene_transcripts.get(gene_id, [])
+        gene_dict["transcripts"] = transcripts
+        # Retrieve gene extents from transcript
+        start = sys.maxsize
+        end = 0
+        contig = None
+        strand = None
+        for transcript_id in transcripts:
+            tdata = self.get_transcript_dict(transcript_id)
+            exons = tdata["exons"]
+            start = min(start, exons[0][0])
+            end = max(end, exons[-1][1])
+            if contig is None:
+                contig = tdata["contig"]
+                strand = tdata["strand"]
+
+        gene_dict[settings.CONTIG] = contig
+        gene_dict[settings.STRAND] = strand
+        gene_dict[settings.START] = start
+        gene_dict[settings.END] = end
         return Gene(self, gene_id, gene_dict)
 
     def get_transcript_by_id(self, transcript_id):
@@ -188,8 +265,7 @@ class Reference(object):
         return Transcript(self, transcript_id, transcript_dict)
 
     def get_gene_by_name(self, gene_name):
-        gene_id_by_name = self._genes_dict["gene_id_by_name"]
-        gene_id = gene_id_by_name.get(gene_name)
+        gene_id = self.gene_id_by_name.get(gene_name)
         if gene_id is None:
             msg = "No Gene found with Name=%s" % gene_name
             raise ValueError(msg)
@@ -203,8 +279,8 @@ class Reference(object):
     def get_transcript(self, transcript_id):
         return self.get_transcript_by_id(transcript_id)
 
-    def __getitem__(self, gene_ids):
-        return self.get_genes_by_id(gene_ids)
+    def __getitem__(self, gene_symbols):
+        return self.get_genes_by_name(gene_symbols)
 
     def get_genes_by_id(self, gene_ids):
         genes_subset = []
@@ -212,10 +288,10 @@ class Reference(object):
             genes_subset.append(self.get_gene_by_id(gene_id))
         return genes_subset
 
-    def get_genes_by_name(self, gene_names):
+    def get_genes_by_name(self, gene_symbols):
         genes_subset = []
-        for gene_name in gene_names:
-            genes_subset.append(self.get_gene_by_name(gene_name))
+        for symbol in gene_symbols:
+            genes_subset.append(self.get_gene_by_name(symbol))
         return genes_subset
 
     @lazy
@@ -361,8 +437,9 @@ class Reference(object):
 
     @lazy
     def has_chr(self):
-        transcripts_by_id = self._genes_dict["transcripts_by_id"]
-        some_transcript = six.next(six.itervalues(transcripts_by_id))
+        transcripts_by_id = self._genes_dict["transcripts"]
+        some_transcript_id = six.next(six.iterkeys(transcripts_by_id))
+        some_transcript = self.get_transcript_dict(some_transcript_id)
         contig = some_transcript[settings.CONTIG]
         return contig.startswith("chr")
 

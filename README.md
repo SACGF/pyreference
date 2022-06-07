@@ -13,8 +13,8 @@ PyReference loads GTF annotations extremely rapidly, and makes it easy to write 
 	
 	reference = pyreference.Reference()
 
-	my_gene_ids = ["MSN", "GATA2", "ZEB1"]
-	for gene in reference[my_gene_ids]:
+	my_gene_symbols = ["MSN", "GATA2", "ZEB1"]
+	for gene in reference[my_gene_symbols]:
 		average_length = np.mean([t.length for t in gene.transcripts])
 		print("%s average length = %.2f" % (gene, average_length))
 		print(gene.iv)
@@ -74,11 +74,13 @@ Create a ~/pyreference.cfg file pointing to your references.
 	default_build=hg19
 
 	[hg19]
+	genome_accession=GRCh37
 	genes_json=/data/reference/hg19/genes.gtf.json.gz
 	mature_mir_sequence_fasta=/data/reference/hg19/mature.fa
 	genome_sequence_fasta=/data/reference/hg19/genome.fa
 
 	[mm10]
+	genome_accession=GRCm38
 	genes_json=/data/reference/mm10/genes.gtf.json.gz
 	mature_mir_sequence_fasta=/data/reference/mm10/mature.fa
 	genome_sequence_fasta=/data/reference/mm10/genome.fa

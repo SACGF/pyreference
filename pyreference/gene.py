@@ -18,7 +18,7 @@ class Gene(GenomicRegion):
         return self.get_gene_name()
 
     def get_gene_name(self):
-        return self._dict["name"]
+        return self._dict["gene_symbol"]
 
     @lazy
     def transcripts(self):

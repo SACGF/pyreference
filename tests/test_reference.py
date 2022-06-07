@@ -25,7 +25,7 @@ class Test(unittest.TestCase):
         this_file_dir = os.path.dirname(abspath(getsourcefile(lambda: 0)))
         reference_dir = os.path.join(this_file_dir, "reference")
 
-        genes_json = os.path.join(reference_dir, "hg19_chrY_300kb_genes.gtf.json.gz")
+        genes_json = os.path.join(reference_dir, "hg19_chrY_300kb_genes.gtf.cdot.json.gz")
         genome_sequence_fasta = os.path.join(reference_dir, "hg19_chrY_300kb.fa")
         mature_mir_sequence_fasta = os.path.join(reference_dir, "mature_200ab_only.fa")
 

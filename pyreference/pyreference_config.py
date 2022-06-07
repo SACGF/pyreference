@@ -32,10 +32,13 @@ def load_params_from_config(build=None, config=None):
     GLOBAL_FLAGS = ["use_gzip_open", "stranded"]
     params = {}
 
-    defaults = {'genes_json': None,
-                'trna_json': None,
-                'mature_mir_sequence_fasta': None,
-                'genome_sequence_fasta': None, }
+    defaults = {
+        'genome_accession': None,
+        'genes_json': None,
+        'trna_json': None,
+        'mature_mir_sequence_fasta': None,
+        'genome_sequence_fasta': None
+    }
     cfg = ConfigParser(allow_no_value=True, defaults=defaults)
     cfg.read(config)
 

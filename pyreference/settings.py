@@ -1,6 +1,6 @@
 
-# Stores JSON schema version, incrementing = incompatible
-PYREFERENCE_JSON_VERSION_KEY = "pyreference_json_version"
+# Stores JSON schema version, incrementing major/minor number = incompatible
+CDOT_JSON_VERSION_KEY = "cdot_version"
 
 # Keys used in dictionary (serialized to JSON)
 CONTIG = "contig"
