@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import
 
 import abc
+import six
 from lazy import lazy
 
 from pyreference.utils.genomics_utils import iv_from_pos_range, \
@@ -22,7 +23,13 @@ class GenomicRegion(object):
         return '/'.join(sorted(self.get_biotypes()))
 
     def get_biotypes(self):
-        return self._dict["biotype"]
+        # On gene it's a string
+        biotype = self._dict["biotype"]
+        if isinstance(biotype, six.string_types):
+            biotypes = biotype.split(",")
+        elif isinstance(biotype, list):
+            biotypes = biotype
+        return biotypes
     
     @lazy
     def iv(self):
