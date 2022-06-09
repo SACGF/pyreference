@@ -20,7 +20,6 @@ class ReferenceArgumentParser(configargparse.ArgumentParser):
         self.add('--stranded', dest='stranded', action='store_true')
         self.add('--unstranded', dest='stranded', action='store_false')
 
-
     def parse_args(self):
         """ get args from command line, adding 'reference' field set to PyReference instance """
         args = super(ReferenceArgumentParser, self).parse_args()

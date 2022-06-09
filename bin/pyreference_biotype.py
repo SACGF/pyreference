@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from collections import Counter, defaultdict
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
-from pyreference import Reference
+from pyreference import Reference, ReferenceArgumentParser
 from pyreference.utils import iv_iterators
 from pyreference.utils.file_utils import name_from_file_name, mk_path_for_file
 from pyreference.utils.genomics_utils import opposite_strand, format_chrom
@@ -17,7 +17,7 @@ import six
 
 
 def handle_args():
-    parser = ArgumentParser(description='Collect stats on read length and biotype')
+    parser = ReferenceArgumentParser(description='Collect stats on read length and biotype')
     parser.add_argument("--intervals", help='.bed/.gtf etc file')
     parser.add_argument("--intervals-name", help="Used in graphs")
     parser.add_argument("--reverse-strand", action='store_true',
@@ -125,8 +125,7 @@ def main():
     csv_file = "%s.read_counts.regions.csv" % sample_name
     graph_image =  "%s.read_counts.regions.png" % sample_name
     
-    # Use this as a test platform to load reference
-    reference = Reference()
+    reference = args.reference
     print("Reference is", reference) #To confirm the annotation you're using is what you intended. 
     
     regions_array = create_biotype_regions_array(reference)
@@ -162,9 +161,10 @@ def main():
     largest = max(df.index)
     all_read_lengths = range(smallest, largest + 1)
     missing_read_lengths = (sorted(set(all_read_lengths).difference(df.index)))
-    
-    for i in missing_read_lengths: 
-        df = df.append(pd.Series(name=i, index=df.columns, data=0))
+    if missing_read_lengths:
+        missing_df = pd.DataFrame(index=missing_read_lengths, dtype=int, columns=df.columns, data=0)
+        df = pd.concat([df, missing_df])
+
     df = df.sort_index()
     df.to_csv(csv_file)
     

@@ -20,7 +20,7 @@ from pysam import FastaFile  # @UnresolvedImport
 import six
 import sys
 
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 CDOT_VERSION_SCHEMA = (0, 2, 0)
 
 
@@ -214,10 +214,9 @@ class Reference(object):
     def genes_by_biotype(self):
         """ dict of {"biotype" : array_of_genes_biotype }
             This also includes 'tRNA' (from non-standard UCSC GTF) """
-        gene_ids_by_biotype = self._genes_dict["gene_ids_by_biotype"]
 
         genes_by_biotype = {}
-        for (biotype, gene_ids) in gene_ids_by_biotype.items():
+        for (biotype, gene_ids) in self.gene_ids_by_biotype.items():
             genes = []
             for gene_id in gene_ids:
                 genes.append(self.get_gene_by_id(gene_id))

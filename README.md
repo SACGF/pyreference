@@ -65,8 +65,10 @@ Choose your annotation:
     http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz
 
 Pre-process your GFF3 or GTF files to create genes.gtf.json.gz (~1/20th the size of the input GTF file)
-    
-    pyreference_gff_to_json.py --gff3 genes.gff.gz
+
+    git clone https://github.com/SACGF/cdot
+    cdot/generate_transcript_data/cdot_json.py gtf_to_json GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz \
+     --genome-build=GRCh38 --url http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz
 
 Create a ~/pyreference.cfg file pointing to your references.
 
