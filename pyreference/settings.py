@@ -4,6 +4,7 @@ CDOT_JSON_VERSION_KEY = "cdot_version"
 
 # Keys used in dictionary (serialized to JSON)
 CONTIG = "contig"
+CHROM = "chrom"
 START = "start"
 END = "stop"
 STRAND = "strand"

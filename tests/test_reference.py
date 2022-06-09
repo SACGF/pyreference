@@ -29,7 +29,8 @@ class Test(unittest.TestCase):
         genome_sequence_fasta = os.path.join(reference_dir, "hg19_chrY_300kb.fa")
         mature_mir_sequence_fasta = os.path.join(reference_dir, "mature_200ab_only.fa")
 
-        self.reference = Reference(genes_json=genes_json,
+        self.reference = Reference(genome_accession='GRCh37',
+                                   genes_json=genes_json,
                                    genome_sequence_fasta=genome_sequence_fasta,
                                    mature_mir_sequence_fasta=mature_mir_sequence_fasta)
 
@@ -156,9 +157,9 @@ class Test(unittest.TestCase):
             ('chrY', 165764, 165999, '+'),
         ]
         expected_cds = []
-        for (contig, start, stop, strand) in gtf_cds:
+        for (chrom, start, stop, strand) in gtf_cds:
             # Adjust start as GTF is 1-based
-            expected_cds.append({"contig": contig, "start": start-1, "stop": stop, "strand": strand})
+            expected_cds.append({"chrom": chrom, "start": start-1, "stop": stop, "strand": strand})
 
         transcript = self.reference.transcripts["NM_018390_2"]
         print(transcript._dict)
@@ -166,14 +167,13 @@ class Test(unittest.TestCase):
         cds_features = transcript.get_features_in_stranded_order("CDS")
         self.assertEqual(cds_features, expected_cds)
 
-        expected_start_codon = [{"contig": "chrY", 'start': 150854, 'stop': 150857, "strand": "+"}]
+        expected_start_codon = [{"chrom": "chrY", 'start': 150854, 'stop': 150857, "strand": "+"}]
         start_codon = transcript.get_features_in_stranded_order("start_codon")
         self.assertEqual(start_codon, expected_start_codon)
 
-        expected_stop_codon = [{"contig": "chrY", 'start': 165999, 'stop': 166002, "strand": "+"}]
+        expected_stop_codon = [{"chrom": "chrY", 'start': 165999, 'stop': 166002, "strand": "+"}]
         stop_codon = transcript.get_features_in_stranded_order("stop_codon")
         self.assertEqual(stop_codon, expected_stop_codon)
-
 
     def test_get_features_negative_strand(self):
         """ We re-build features now from exons - test this matches GTF """
@@ -196,9 +196,9 @@ class Test(unittest.TestCase):
         ]
         # Reverse as NM_013239 is -'ve strand
         expected_cds = []
-        for (contig, start, stop, strand) in reversed(gtf_cds):
+        for (chrom, start, stop, strand) in reversed(gtf_cds):
             # Adjust start as GTF is 1-based
-            expected_cds.append({"contig": contig, "start": start-1, "stop": stop, "strand": strand})
+            expected_cds.append({"chrom": chrom, "start": start-1, "stop": stop, "strand": strand})
 
         transcript = self.reference.transcripts["NM_013239"]
         print(transcript._dict)
@@ -206,11 +206,11 @@ class Test(unittest.TestCase):
         cds_features = transcript.get_features_in_stranded_order("CDS")
         self.assertEqual(cds_features, expected_cds)
 
-        expected_start_codon = [{"contig": "chrY", "start": 297423, "stop": 297426, "strand": "-"}]
+        expected_start_codon = [{"chrom": "chrY", "start": 297423, "stop": 297426, "strand": "-"}]
         start_codon = transcript.get_features_in_stranded_order("start_codon")
         self.assertEqual(start_codon, expected_start_codon)
 
-        expected_stop_codon = [{"contig": "chrY", "start": 245101, "stop": 245104, "strand": "-"}]
+        expected_stop_codon = [{"chrom": "chrY", "start": 245101, "stop": 245104, "strand": "-"}]
         stop_codon = transcript.get_features_in_stranded_order("stop_codon")
         self.assertEqual(stop_codon, expected_stop_codon)
 

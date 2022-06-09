@@ -13,15 +13,15 @@ try:
 except (ImportError,AttributeError):
     pass
     
-from pyreference.settings import CONTIG, START, END, STRAND
+from pyreference.settings import CHROM, START, END, STRAND
 
 
 def HTSeqInterval_to_feature_dict(iv):
-    return {CONTIG : iv.chrom, START : iv.start, END : iv.end, STRAND : iv.strand}
+    return {CHROM: iv.chrom, START: iv.start, END: iv.end, STRAND: iv.strand}
 
 
 def dict_to_iv(data):
-    chrom = str(data[CONTIG])
+    chrom = str(data[CHROM])
     start = data[START]
     end = data[END]
     strand = str(data[STRAND])
@@ -77,8 +77,8 @@ def last_base(iv):
 
 
 def opposite_strand(strand):
-    opposites = {"+" : "-",
-                 "-" : "+"}
+    opposites = {"+": "-",
+                 "-": "+"}
     o = opposites.get(strand)
     if o is None:
         raise ValueError("Unknown strand '%s'" % strand)

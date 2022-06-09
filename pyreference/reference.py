@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import
 
 import HTSeq
+from bioutils.assemblies import make_ac_name_map
 from collections import defaultdict
 from deprecation import deprecated
 from functools import reduce
@@ -114,6 +115,7 @@ class Reference(object):
         self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta")
         self.use_gzip_open = params.get("use_gzip_open", True)
         self.stranded = params.get("stranded", True)
+        self.contig_to_chrom = make_ac_name_map(self._genome_accession)
 
         # Need at least this
         REQUIRED = {
@@ -148,6 +150,8 @@ class Reference(object):
         exons = tdata["exons"]
         tdata[settings.START] = exons[0][0]
         tdata[settings.END] = exons[-1][1]
+        contig = tdata[settings.CONTIG]
+        tdata[settings.CHROM] = self.contig_to_chrom.get(contig, contig)  # Leave as is, if not in map
         return tdata
 
     @lazy
@@ -239,18 +243,18 @@ class Reference(object):
         # Retrieve gene extents from transcript
         start = sys.maxsize
         end = 0
-        contig = None
+        chrom = None
         strand = None
         for transcript_id in transcripts:
             tdata = self.get_transcript_dict(transcript_id)
             exons = tdata["exons"]
             start = min(start, exons[0][0])
             end = max(end, exons[-1][1])
-            if contig is None:
-                contig = tdata["contig"]
-                strand = tdata["strand"]
+            if chrom is None:
+                chrom = tdata[settings.CHROM]
+                strand = tdata[settings.STRAND]
 
-        gene_dict[settings.CONTIG] = contig
+        gene_dict[settings.CHROM] = chrom
         gene_dict[settings.STRAND] = strand
         gene_dict[settings.START] = start
         gene_dict[settings.END] = end
@@ -324,7 +328,7 @@ class Reference(object):
             If upper_case=True, return the sequence as upper case (Default).
             If false, do not convert case, i.e retain lower case where it was present."""
 
-        chrom = str(feature_dict[settings.CONTIG])
+        chrom = str(feature_dict[settings.CHROM])
         start = feature_dict[settings.START]
         end = feature_dict[settings.END]
         strand = str(feature_dict[settings.STRAND])
@@ -439,8 +443,8 @@ class Reference(object):
         transcripts_by_id = self._genes_dict["transcripts"]
         some_transcript_id = six.next(six.iterkeys(transcripts_by_id))
         some_transcript = self.get_transcript_dict(some_transcript_id)
-        contig = some_transcript[settings.CONTIG]
-        return contig.startswith("chr")
+        chrom = some_transcript[settings.CHROM]
+        return chrom.startswith("chr")
 
     def __repr__(self):
         return "PyReference (%s)" % self.build

@@ -42,6 +42,7 @@ setup(name='pyreference',
       install_requires=[
           'numpy',
           'biopython',
+          'bioutils',
           'configargparse',
           'deprecation',
           'HTSeq',

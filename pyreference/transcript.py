@@ -5,7 +5,7 @@ from collections import defaultdict
 from lazy import lazy
 
 from pyreference.genomic_region import GenomicRegion
-from pyreference.settings import START, END, CONTIG, STRAND
+from pyreference.settings import START, END, CHROM, STRAND
 from pyreference.utils.genomics_utils import GenomicInterval_from_directional, dict_to_iv
 
 
@@ -120,11 +120,11 @@ class Transcript(GenomicRegion):
         features = self.features_by_type.get(feature_type, [])
         if features:
             # Need to add this as not in there by default
-            transcript_chrom = self._dict[CONTIG]
+            transcript_chrom = self._dict[CHROM]
             transcript_strand = self._dict[STRAND]
 
             for f in features:
-                f[CONTIG] = transcript_chrom
+                f[CHROM] = transcript_chrom
                 f[STRAND] = transcript_strand
 
             features = sorted(features, key=lambda x: x[START], reverse=is_reversed)
