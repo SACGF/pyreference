@@ -46,6 +46,13 @@ Outputs:
 
 This takes less than 4 seconds to load via a network drive on my machine.
 
+## pyreference biotype ##
+
+Also included is a command line tool (pyreference_biotype.py) which shows which biotypes small RNA fragments map to.
+
+![](https://i.stack.imgur.com/Tsjr3.jpg)
+
+
 ## Installation ##
 
     sudo pip install pyreference
