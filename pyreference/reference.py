@@ -26,7 +26,7 @@ CDOT_VERSION_SCHEMA = (0, 2, 0)
 FASTA_LOOKUP_HAS_CHR = "chr"
 FASTA_LOOKUP_NO_CHR = "no_chr"
 FASTA_LOOKUP_CONTIG = "contig"
-FASTA_LOOKUP = {'None', FASTA_LOOKUP_HAS_CHR, FASTA_LOOKUP_NO_CHR, FASTA_LOOKUP_CONTIG}
+FASTA_LOOKUP = {None, FASTA_LOOKUP_HAS_CHR, FASTA_LOOKUP_NO_CHR, FASTA_LOOKUP_CONTIG}
 
 
 def get_schema_version(version_tuple):
@@ -98,7 +98,7 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
 
 
 class Reference(object):
-    def __init__(self, build=None, config=None, **kwargs):
+    def __init__(self, build=None, config=None, load_config_file=True, **kwargs):
         """ Construct a new reference object via:
         
             build - from pyreference config file (defaults to [global] default_build from config file) 
@@ -120,12 +120,13 @@ class Reference(object):
             """
 
         # May not need to have config file if they passed in params 
+        params = {"build": build}
         config_exception = None
         try:
-            params = load_params_from_config(build=build, config=config)
+            if load_config_file is True:
+                params = load_params_from_config(build=build, config=config)
         except OSError as e:
             config_exception = e
-            params = {"build": build}
 
         # Set / Overwrite with non-null kwargs
         params.update({k: v for (k, v) in kwargs.items() if v is not None})
@@ -154,8 +155,9 @@ class Reference(object):
                 raise ValueError(message + " config section '%s' in file '%s'" % (params['build'], params['config']))
 
         if self._genome_sequence_lookup not in FASTA_LOOKUP:
-                raise ValueError("genome_sequence_lookup='%s' must be one of %s" % (self._genome_sequence_lookup,
-                                                                                    ','.join(FASTA_LOOKUP)))
+            valid_values = ','.join(str(s) for s in FASTA_LOOKUP)
+            raise ValueError("genome_sequence_lookup='%s' must be one of %s" % (self._genome_sequence_lookup,
+                                                                                valid_values))
 
         self.contig_to_chrom = make_ac_name_map(self._genome_accession)
         # Store this so we can ask about config later
@@ -390,7 +392,8 @@ class Reference(object):
             msg = "Fasta sequence '%s' did not contain '%s'. " % (self._genome_sequence_fasta, fasta_lookup)
             if fasta_lookup != chrom:
                 msg += " (converted from chrom='%s')" % chrom
-            params = (self._genome_sequence_lookup, ', '.join(FASTA_LOOKUP), ', '.join(self.genome.references[:5]))
+            valid_values = ','.join(str(s) for s in FASTA_LOOKUP)
+            params = (self._genome_sequence_lookup, valid_values, ', '.join(self.genome.references[:5]))
             msg += "You can change how chromosomes are looked up in Fasta files with 'genome_sequence_lookup'. " \
                    "Current value is '%s', allowed values = '%s'. First 5 refs in genome are %s" % params
             raise KeyError(msg)

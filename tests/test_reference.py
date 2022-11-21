@@ -29,7 +29,8 @@ class Test(unittest.TestCase):
         genome_sequence_fasta = os.path.join(reference_dir, "hg19_chrY_300kb.fa")
         mature_mir_sequence_fasta = os.path.join(reference_dir, "mature_200ab_only.fa")
 
-        self.reference = Reference(genome_accession='GRCh37',
+        self.reference = Reference(load_config_file=False,
+                                   genome_accession='GRCh37',
                                    genes_json=genes_json,
                                    genome_sequence_fasta=genome_sequence_fasta,
                                    mature_mir_sequence_fasta=mature_mir_sequence_fasta)
@@ -110,12 +111,12 @@ class Test(unittest.TestCase):
     def test_get_gene_names(self):
         intron = HTSeq.GenomicInterval("chrY", 144043, 144218, '+')
         gene_name = self.reference.get_gene_names(intron)
-        self.assertEquals("PLCXD1", gene_name)
+        self.assertEqual("PLCXD1", gene_name)
 
     def test_get_gene_region_names(self):
         intron = HTSeq.GenomicInterval("chrY", 144043, 144218, '+')
         region = self.reference.get_region_names(intron)
-        self.assertEquals("intron", region)
+        self.assertEqual("intron", region)
 
     def test_gene_transcripts(self):
         plcxd1 = self.reference.get_gene("PLCXD1")
