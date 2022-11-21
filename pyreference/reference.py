@@ -16,13 +16,17 @@ from pyreference.mirna import MiRNA
 from pyreference.pyreference_config import load_params_from_config
 from pyreference.transcript import Transcript
 from pyreference.utils.genomics_utils import get_unique_features_from_genomic_array_of_sets_iv, fasta_to_hash, \
-    HTSeqInterval_to_feature_dict, reverse_complement
+    HTSeqInterval_to_feature_dict, reverse_complement, format_chrom
 from pysam import FastaFile  # @UnresolvedImport
 import six
 import sys
 
 __version__ = "0.7.2"
 CDOT_VERSION_SCHEMA = (0, 2, 0)
+FASTA_LOOKUP_HAS_CHR = "chr"
+FASTA_LOOKUP_NO_CHR = "no_chr"
+FASTA_LOOKUP_CONTIG = "contig"
+FASTA_LOOKUP = {'None', FASTA_LOOKUP_HAS_CHR, FASTA_LOOKUP_NO_CHR, FASTA_LOOKUP_CONTIG}
 
 
 def get_schema_version(version_tuple):
@@ -62,17 +66,33 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
         json_str = json_bytes.decode('ascii')
     data = json.loads(json_str)
 
-    raw_json_version = data[settings.CDOT_JSON_VERSION_KEY].split(".")
-    json_version = get_schema_version(raw_json_version)
-    current_version = get_schema_version(CDOT_VERSION_SCHEMA)
-    if current_version != json_version:
-        params = {"version_key": settings.CDOT_JSON_VERSION_KEY,
-                  "current_version": current_version,
-                  "json_version": json_version,
-                  "file_name": gz_json_file_name}
-        msg = "PyReference with %(version_key)s %(current_version)d attempted to load '%(file_name)s' with %(version_key)s: %(json_version)d.\n" % params
-        msg += "Please re-create with this version of pyreference_gff_to_json.py."
-        raise ValueError(msg)
+    extra_message = None
+    if raw_json_version := data.get(settings.CDOT_JSON_VERSION_KEY):
+        json_version = get_schema_version(raw_json_version.split("."))
+        version_key = settings.CDOT_JSON_VERSION_KEY
+    elif old_pyreference_version := data.get("pyreference_json_version"):
+        json_version = "Old pre-cot Pyreference v%d" % old_pyreference_version
+        version_key = "pyreference_json_version"
+        extra_message = "PyReference switched to using cdot generated files in November 2022\n"
+    else:
+        raise ValueError('Invalid PyReference genes_json file: %s' % gz_json_file_name)
+
+    cdot_schema_version = get_schema_version(CDOT_VERSION_SCHEMA)
+    if cdot_schema_version != json_version:
+        params = {
+            "pyreference_version": __version__,
+            "cdot_schema_version": cdot_schema_version,
+            "version_key": version_key,
+            "json_version": json_version,
+            "file_name": gz_json_file_name,
+            "wiki_url": "https://github.com/SACGF/pyreference/wiki/genes_json_file",
+        }
+        msg = "PyReference %(pyreference_version)s requires cdot genes JSON file of schema v.%(cdot_schema_version)d\n"
+        msg += "Genes JSON file '%(file_name)s' has %(version_key)s: %(json_version)s.\n"
+        if extra_message:
+            msg += extra_message
+        msg += "Please download or re-create a genes JSON file from GTF. See %(wiki_url)s"
+        raise ValueError(msg % params)
 
     return data
 
@@ -90,6 +110,7 @@ class Reference(object):
             genes_json
             trna_json
             genome_sequence_fasta
+            genome_sequence_lookup
             mature_mir_sequence_fasta
             
             Any passed parameters will overwrite those from the config file
@@ -112,10 +133,10 @@ class Reference(object):
         self._genes_json = params.get("genes_json")
         self._trna_json = params.get("trna_json")
         self._genome_sequence_fasta = params.get("genome_sequence_fasta")
+        self._genome_sequence_lookup = params.get("genome_sequence_lookup")
         self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta")
         self.use_gzip_open = params.get("use_gzip_open", True)
         self.stranded = params.get("stranded", True)
-        self.contig_to_chrom = make_ac_name_map(self._genome_accession)
 
         # Need at least this
         REQUIRED = {
@@ -130,8 +151,13 @@ class Reference(object):
                     six.raise_from(ValueError(message + " passed kwargs"), config_exception)
                 if config_exception:
                     raise config_exception
-                raise ValueError(message + " config section '%s' in file '%s'" % (params['build'], config))
+                raise ValueError(message + " config section '%s' in file '%s'" % (params['build'], params['config']))
 
+        if self._genome_sequence_lookup not in FASTA_LOOKUP:
+                raise ValueError("genome_sequence_lookup='%s' must be one of %s" % (self._genome_sequence_lookup,
+                                                                                    ','.join(FASTA_LOOKUP)))
+
+        self.contig_to_chrom = make_ac_name_map(self._genome_accession)
         # Store this so we can ask about config later
         self.build = params["build"]
         self._args = {"build": build, "config": config}
@@ -323,6 +349,27 @@ class Reference(object):
         feature_dict = HTSeqInterval_to_feature_dict(iv)
         return self.get_sequence_from_feature(feature_dict, upper_case=upper_case)
 
+    def get_fasta_lookup_for_chrom(self, chrom):
+        """ Some fasta files use contigs """
+
+        if self._genome_sequence_lookup:
+            if self._genome_sequence_lookup == FASTA_LOOKUP_HAS_CHR:
+                fasta_lookup = format_chrom(chrom, want_chr=True)
+            elif self._genome_sequence_lookup == FASTA_LOOKUP_NO_CHR:
+                fasta_lookup = format_chrom(chrom, want_chr=False)
+            elif self._genome_sequence_lookup == FASTA_LOOKUP_CONTIG:
+                fasta_lookup = self.chrom_to_contig[chrom]
+            else:
+                raise ValueError("Unknown value for _genome_sequence_lookup: %s" % self._genome_sequence_lookup)
+        else:
+            fasta_lookup = chrom
+
+        return fasta_lookup
+
+    @lazy
+    def chrom_to_contig(self):
+        return {chrom: contig for contig, chrom in self.contig_to_chrom.items()}
+
     def get_sequence_from_feature(self, feature_dict, upper_case=True):
         """Repetitive regions are sometimes represented as lower case.
             If upper_case=True, return the sequence as upper case (Default).
@@ -332,9 +379,22 @@ class Reference(object):
         start = feature_dict[settings.START]
         end = feature_dict[settings.END]
         strand = str(feature_dict[settings.STRAND])
-        seq = self.genome.fetch(reference=chrom,
-                                start=start,
-                                end=end)
+        fasta_lookup = self.get_fasta_lookup_for_chrom(chrom)
+        try:
+            seq = self.genome.fetch(reference=fasta_lookup,
+                                    start=start,
+                                    end=end)
+        except KeyError:
+            self._genome_sequence_lookup
+
+            msg = "Fasta sequence '%s' did not contain '%s'. " % (self._genome_sequence_fasta, fasta_lookup)
+            if fasta_lookup != chrom:
+                msg += " (converted from chrom='%s')" % chrom
+            params = (self._genome_sequence_lookup, ', '.join(FASTA_LOOKUP), ', '.join(self.genome.references[:5]))
+            msg += "You can change how chromosomes are looked up in Fasta files with 'genome_sequence_lookup'. " \
+                   "Current value is '%s', allowed values = '%s'. First 5 refs in genome are %s" % params
+            raise KeyError(msg)
+
         if strand == '-':
             seq = reverse_complement(seq)
 

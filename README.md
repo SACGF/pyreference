@@ -4,14 +4,16 @@
 
 A Python library for working with reference gene annotations.
 
-PyReference loads GTF annotations extremely rapidly, and makes it easy to write code which can be run against different genomes.
+A GTF/GFF3 can take minutes to load. We pre-process it into JSON, so it can be loaded extremely rapidly.  
+
+PyReference makes it easy to write genomics code, which is easily run across different genomes or annotation versions.
 
 ## Example ##
 
     import numpy as np
-    import pyreference
+    from pyreference import Reference 
 	
-	reference = pyreference.Reference()
+	reference = Reference()  # uses ~/pyreference.cfg default_build
 
 	my_gene_symbols = ["MSN", "GATA2", "ZEB1"]
 	for gene in reference[my_gene_symbols]:

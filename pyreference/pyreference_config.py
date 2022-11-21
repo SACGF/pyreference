@@ -37,7 +37,8 @@ def load_params_from_config(build=None, config=None):
         'genes_json': None,
         'trna_json': None,
         'mature_mir_sequence_fasta': None,
-        'genome_sequence_fasta': None
+        'genome_sequence_fasta': None,
+        "genome_sequence_lookup": None,
     }
     cfg = ConfigParser(allow_no_value=True, defaults=defaults)
     cfg.read(config)
