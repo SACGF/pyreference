@@ -16,6 +16,21 @@ class Gene(GenomicRegion):
     @property
     def name(self):
         return self.get_gene_name()
+    @property
+    def description(self):
+        return self._dict.get("description")
+
+    @property
+    def biotype(self):
+        return self._dict.get("biotype")
+
+    @property
+    def summary(self):
+        return self._dict.get("summary")
+
+    @property
+    def map_location(self):
+        return self._dict.get("map_location")
 
     def get_gene_name(self):
         return self._dict["gene_symbol"]
@@ -52,7 +67,7 @@ class Gene(GenomicRegion):
     def get_longest_transcript(self, coding_only=False):
         transcripts = self.transcripts
         if coding_only:
-            transcripts = filter(lambda t : t.is_coding, transcripts)
+            transcripts = filter(lambda t: t.is_coding, transcripts)
         
         longest_transcript = None
         if transcripts:

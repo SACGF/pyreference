@@ -21,7 +21,7 @@ def _get_version(rel_path):
 
 setup(name='pyreference',
       packages=find_packages(),
-      version=_get_version("pyreference/reference.py"),
+      version=_get_version("pyreference/__init__.py"),
       description='Library for working with reference genomes and gene GTF/GFFs',
       long_description_content_type="text/markdown",
       long_description=open("README.md").read(),

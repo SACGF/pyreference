@@ -2,6 +2,15 @@
 
 ### Changed
 
+## [0.7.2] - 2022-01-12
+
+### Added
+
+- New Gene properties 'description', 'summary', 'map_location' and 'biotype'
+- Support for Fasta reference genomes that use contigs for sequence names (eg NCBI)
+
+### Changed
+
 - We now use [cdot](https://github.com/SACGF/cdot) JSON.gz files
 
 ## [0.6.3] - 2022-01-12

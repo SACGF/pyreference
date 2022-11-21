@@ -21,7 +21,6 @@ from pysam import FastaFile  # @UnresolvedImport
 import six
 import sys
 
-__version__ = "0.7.2"
 CDOT_VERSION_SCHEMA = (0, 2, 0)
 FASTA_LOOKUP_HAS_CHR = "chr"
 FASTA_LOOKUP_NO_CHR = "no_chr"
@@ -80,7 +79,7 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
     cdot_schema_version = get_schema_version(CDOT_VERSION_SCHEMA)
     if cdot_schema_version != json_version:
         params = {
-            "pyreference_version": __version__,
+            "pyreference_version": pyreference.__version__,
             "cdot_schema_version": cdot_schema_version,
             "version_key": version_key,
             "json_version": json_version,
