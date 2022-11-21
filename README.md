@@ -2,7 +2,7 @@
 
 [![PyPi version](https://img.shields.io/pypi/v/pyreference.svg)](https://pypi.org/project/pyreference/) [![Python versions](https://img.shields.io/pypi/pyversions/pyreference.svg)](https://pypi.org/project/pyreference/)
 
-A Python library for working with reference gene annotations.
+A Python library for working with reference gene annotations. For RefSeq/Ensembl GRCh37/GRCh38 and other species
 
 A GTF/GFF3 can take minutes to load. We pre-process it into JSON, so it can be loaded extremely rapidly.  
 
@@ -54,61 +54,11 @@ Also included is a command line tool (pyreference_biotype.py) which shows which 
 
 ![](https://i.stack.imgur.com/Tsjr3.jpg)
 
-
 ## Installation ##
 
     sudo pip install pyreference
 
-Choose your annotation:
+Then you will need to:
 
-    # Latest Ensembl GRCh37
-    wget ftp://ftp.ensembl.org/pub/grch37/release-87/gff3/homo_sapiens/Homo_sapiens.GRCh37.87.gff3.gz
-
-    # Latest Ensembl GRCh38
-    wget ftp://ftp.ensembl.org/pub/release-104/gff3/homo_sapiens/Homo_sapiens.GRCh38.104.gff3.gz
-
-    # Latest RefSeq GRCh37
-    wget http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/105.20201022/GCF_000001405.25_GRCh37.p13/GCF_000001405.25_GRCh37.p13_genomic.gff.gz
-
-    # Latest RefSeq GRCh38
-    http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz
-
-Pre-process your GFF3 or GTF files to create genes.gtf.json.gz (~1/20th the size of the input GTF file)
-
-    git clone https://github.com/SACGF/cdot
-    cdot/generate_transcript_data/cdot_json.py gtf_to_json GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz \
-     --genome-build=GRCh38 --url http://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gff.gz
-
-Create a ~/pyreference.cfg file pointing to your references.
-
-	[global]
-	default_build=hg19
-
-	[hg19]
-	genome_accession=GRCh37
-	genes_json=/data/reference/hg19/genes.gtf.json.gz
-	mature_mir_sequence_fasta=/data/reference/hg19/mature.fa
-	genome_sequence_fasta=/data/reference/hg19/genome.fa
-
-	[mm10]
-	genome_accession=GRCm38
-	genes_json=/data/reference/mm10/genes.gtf.json.gz
-	mature_mir_sequence_fasta=/data/reference/mm10/mature.fa
-	genome_sequence_fasta=/data/reference/mm10/genome.fa
-
-
-## Command line arguments ##
-
-Substitute ArgumentParser with pyreference.ReferenceArgumentParser to add a --build option to your command line arguments. 
-
-args.reference is now initialised to the correct build/annotation.
-
-	from pyreference import ReferenceArgumentParser
-
-	parser = ReferenceArgumentParser()
-	parser.add("mirna_name")
-
-	args = parser.parse_args()
-	reference = args.reference.get_mirna(args.mirna_name)
-	print(mir.get_8mer_target())
-
+* [Download / Create gene annotations](https://github.com/SACGF/pyreference/wiki/genes_json_file)
+* Create a [pyreference config files](https://github.com/SACGF/pyreference/wiki/pyreference_config_file)
