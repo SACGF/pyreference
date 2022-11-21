@@ -12,18 +12,18 @@ PyReference makes it easy to write genomics code, which is easily run across dif
 
     import numpy as np
     from pyreference import Reference 
-	
-	reference = Reference()  # uses ~/pyreference.cfg default_build
+    
+    reference = Reference()  # uses ~/pyreference.cfg default_build
 
-	my_gene_symbols = ["MSN", "GATA2", "ZEB1"]
-	for gene in reference[my_gene_symbols]:
-		average_length = np.mean([t.length for t in gene.transcripts])
-		print("%s average length = %.2f" % (gene, average_length))
-		print(gene.iv)
-		for transcript in gene.transcripts:
-			if transcript.is_coding:
-				threep_utr = transcript.get_3putr_sequence()
-				print("%s end of 3putr: %s" % (transcript.get_id(), threep_utr[-20:]))
+    my_gene_symbols = ["MSN", "GATA2", "ZEB1"]
+    for gene in reference[my_gene_symbols]:
+        average_length = np.mean([t.length for t in gene.transcripts])
+        print("%s average length = %.2f" % (gene, average_length))
+        print(gene.iv)
+        for transcript in gene.transcripts:
+            if transcript.is_coding:
+                threep_utr = transcript.get_3putr_sequence()
+                print("%s end of 3putr: %s" % (transcript.get_id(), threep_utr[-20:]))
 
 Outputs:
 
@@ -46,7 +46,7 @@ Outputs:
 	NM_001174095 end of 3putr: CTTCTTTTTCTATTGCCTTA
 	NM_001128128 end of 3putr: CTTCTTTTTCTATTGCCTTA
 
-This takes less than 4 seconds to load via a network drive on my machine.
+This takes 4 seconds to load on my machine.
 
 ## pyreference biotype ##
 
