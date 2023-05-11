@@ -8,6 +8,7 @@ from functools import reduce
 import gzip
 import json
 from lazy import lazy
+import logging
 import operator
 import os
 from pyreference import settings
@@ -157,8 +158,12 @@ class Reference(object):
             valid_values = ','.join(str(s) for s in FASTA_LOOKUP)
             raise ValueError("genome_sequence_lookup='%s' must be one of %s" % (self._genome_sequence_lookup,
                                                                                 valid_values))
+        self.contig_to_chrom = {}
+        try:
+            self.contig_to_chrom = make_ac_name_map(self._genome_accession)
+        except FileNotFoundError:
+            logging.warning(f"Bioutils does not support genome build '{self._genome_accession}' cannot perform chrom/contig mapping")
 
-        self.contig_to_chrom = make_ac_name_map(self._genome_accession)
         # Store this so we can ask about config later
         self.build = params["build"]
         self._args = {"build": build, "config": config}
