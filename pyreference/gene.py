@@ -54,7 +54,7 @@ class Gene(GenomicRegion):
             Sort transcript ID alphabetically if equal length """
         
         transcript = self.get_longest_coding_transcript()
-        if transcript == None:
+        if transcript is None:
             transcript = self.get_longest_transcript()
         return transcript
 
@@ -71,11 +71,16 @@ class Gene(GenomicRegion):
         
         longest_transcript = None
         if transcripts:
-            # We want the MAX length - and MIN ID, so sort by min but use maxint-length  
+            try:
+                big_int = sys.maxint  # Python 2
+            except AttributeError:
+                big_int = sys.maxsize  # Python 3
+
+            # We want the MAX length - and MIN ID, so sort by min but use maxint-length
             # We also want NM_007041 (len 2209) over NM_001001976 (len 2209)
             # Which is annoyingly zero padded - so use smallest ID length, then only if equal do alpha sort 
             def min_transcript_key(t):
-                return (sys.maxint - t.length, len(t.get_id()), t.get_id())
+                return big_int - t.length, len(t.get_id()), t.get_id()
 
             longest_transcript = min(transcripts, key=min_transcript_key)
         return longest_transcript

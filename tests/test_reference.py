@@ -77,6 +77,13 @@ class Test(unittest.TestCase):
             m_rna = transcript.get_transcript_sequence()
             self.assertTrue(m_rna.find(test["3p_utr"]) > 1)
 
+    def test_gene_transcript(self):
+        gene = self.reference.genes["PLCXD1"]
+        lt = gene.get_longest_transcript()
+        self.assertEqual(lt.accession_id, "NM_018390_2")
+        lct = gene.get_longest_coding_transcript()
+        self.assertEqual(lct.accession_id, "NM_018390_2")
+
     def test_get_transcript_length(self):
         transcript_id = "NM_018390_2"
         transcript = self.reference.transcripts[transcript_id]
