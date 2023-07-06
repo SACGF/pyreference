@@ -91,7 +91,9 @@
 - Initial commit. Created project, extracted existing code from SACGF bioinformatics repo
 - Wrote GTF to JSON converter and loader
 
-[unreleased]: https://github.com/SACGF/pyreference/compare/v0.6.3...HEAD
+[unreleased]: https://github.com/SACGF/pyreference/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/SACGF/pyreference/compare/v0.7.2...v0.7.3
+[0.7.2]: https://github.com/SACGF/pyreference/compare/v0.6.3...v0.7.2
 [0.6.3]: https://github.com/SACGF/pyreference/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/SACGF/pyreference/compare/v0.6...v0.6.2
 [0.6]: https://github.com/SACGF/pyreference/compare/v0.5...v0.6
