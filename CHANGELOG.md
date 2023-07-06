@@ -2,7 +2,13 @@
 
 ### Changed
 
-## [0.7.2] - 2022-01-12
+## [0.7.3] - 2023-07-06
+
+### Changed
+
+- Fix gene.representative_transcript dying with "AttributeError: module 'sys' has no attribute 'maxint'" in Python3
+
+## [0.7.2] - 2022-11-21
 
 ### Added
 
