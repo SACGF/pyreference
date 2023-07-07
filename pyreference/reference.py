@@ -77,24 +77,24 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
     else:
         raise ValueError('Invalid PyReference genes_json file: %s' % gz_json_file_name)
 
-    cdot_schema_version = get_schema_version(CDOT_VERSION_SCHEMA)
-    if cdot_schema_version != json_version:
+    required_cdot_schema_version = get_schema_version(CDOT_VERSION_SCHEMA)
+    if required_cdot_schema_version != json_version:
         params = {
             "pyreference_version": pyreference.__version__,
-            "cdot_schema_version": cdot_schema_version,
+            "required_cdot_schema_version": required_cdot_schema_version,
             "version_key": version_key,
             "json_version": json_version,
             "file_name": gz_json_file_name,
             "wiki_url": "https://github.com/SACGF/pyreference/wiki/genes_json_file",
         }
-        msg = "PyReference %(pyreference_version)s requires cdot genes JSON file of schema v.%(cdot_schema_version)d\n"
+        msg = "PyReference %(pyreference_version)s requires cdot genes JSON file of schema v.%(required_cdot_schema_version)d\n"
         msg += "Genes JSON file '%(file_name)s' has %(version_key)s: %(json_version)s.\n"
         if extra_message:
             msg += extra_message
         msg += "Please download or re-create a genes JSON file from GTF. See %(wiki_url)s"
         raise ValueError(msg % params)
 
-    return data
+    return data, json_version
 
 
 class Reference(object):
@@ -136,6 +136,7 @@ class Reference(object):
         self._genome_sequence_fasta = params.get("genome_sequence_fasta")
         self._genome_sequence_lookup = params.get("genome_sequence_lookup")
         self._mature_mir_sequence_fasta = params.get("mature_mir_sequence_fasta")
+        self._cdot_schema_version = None  # Set on load
         self.use_gzip_open = params.get("use_gzip_open", True)
         self.stranded = params.get("stranded", True)
 
@@ -169,9 +170,20 @@ class Reference(object):
         self._args = {"build": build, "config": config}
         self._build_params = params
 
+    def info(self):
+        return {
+            "python": sys.version,
+            "pyreference_version": pyreference.__version__,
+            "cdot_schema_version": self._cdot_schema_version,
+            "genome_accession": self._genome_accession,
+            "genes_json": self._genes_json,
+        }
+
     @lazy
     def _genes_dict(self):
-        return _load_gzip_json(self._genes_json, self.use_gzip_open)
+        genes_dict, cdot_schema_version = _load_gzip_json(self._genes_json, self.use_gzip_open)
+        self._cdot_schema_version = cdot_schema_version
+        return genes_dict
 
     def get_transcript_dict(self, transcript_id):
         """ Moves 'genome_build' down into 1st level of dict as we only need 1 """

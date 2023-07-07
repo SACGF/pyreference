@@ -72,9 +72,9 @@ class Gene(GenomicRegion):
         longest_transcript = None
         if transcripts:
             try:
-                big_int = sys.maxint  # Python 2
-            except AttributeError:
                 big_int = sys.maxsize  # Python 3
+            except AttributeError:
+                big_int = sys.maxint  # Python 2
 
             # We want the MAX length - and MIN ID, so sort by min but use maxint-length
             # We also want NM_007041 (len 2209) over NM_001001976 (len 2209)
