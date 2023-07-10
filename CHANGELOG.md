@@ -5,7 +5,7 @@ Note: 0.7.4 had a minor bug with pyreference.cfg defaults
 ### Changed
 
 - #10 - GTFs can contain multiple gene versions per symbol
-- #11 - Can now choose how representative transcript is resolved. Can use MANE tags  
+- #11 - [Can now choose how representative transcript is resolved. Can use MANE tags](https://github.com/SACGF/pyreference/issues/11#issuecomment-1628566230)  
 - #12 - Handle cdot biotype fixes
 - #13 - Don't duplicate Gene objects (Reduces memory + cpu time) 
 
