@@ -205,6 +205,7 @@ class Reference(object):
         for transcript_id, tdata in self._genes_dict["transcripts"].items():
             if gene_version := tdata["gene_version"]:
                 gene_transcripts[gene_version].add(transcript_id)
+                # In cdot 0.2.20 onwards gene version will have biotype of any transcripts, but earlier this wasn't so
                 for biotype in tdata["biotype"]:
                     gene_version_by_biotype[biotype].add(gene_version)
 
@@ -212,8 +213,14 @@ class Reference(object):
         for gene_version, gdata in self._genes_dict["genes"].items():
             if gene_symbol := gdata.get("gene_symbol"):
                 gene_version_by_symbol[gene_symbol] = gene_version
-            if biotype := gdata.get("biotype"):
-                gene_version_by_biotype[biotype].add(gene_version)
+            if raw_biotype := gdata.get("biotype"):
+                # Previously biotype was a string. In cdot 0.2.20 gene biotype is now a list (to match transcript)
+                if isinstance(raw_biotype, list):
+                    biotype_list = raw_biotype
+                else:
+                    biotype_list = [raw_biotype]
+                for biotype in biotype_list:
+                    gene_version_by_biotype[biotype].add(gene_version)
 
         return gene_transcripts, gene_version_by_symbol, gene_version_by_biotype
 
