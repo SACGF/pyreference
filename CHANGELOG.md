@@ -1,6 +1,11 @@
-## Unreleased
+## [0.7.4] - 2023-07-10
 
 ### Changed
+
+- #10 - GTFs can contain multiple gene versions per symbol
+- #11 - Can now choose how representative transcript is resolved. Can use MANE tags  
+- #12 - Handle cdot biotype fixes
+- #13 - Don't duplicate Gene objects (Reduces memory + cpu time) 
 
 ## [0.7.3] - 2023-07-06
 
@@ -91,7 +96,8 @@
 - Initial commit. Created project, extracted existing code from SACGF bioinformatics repo
 - Wrote GTF to JSON converter and loader
 
-[unreleased]: https://github.com/SACGF/pyreference/compare/v0.7.3...HEAD
+[unreleased]: https://github.com/SACGF/pyreference/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/SACGF/pyreference/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/SACGF/pyreference/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/SACGF/pyreference/compare/v0.6.3...v0.7.2
 [0.6.3]: https://github.com/SACGF/pyreference/compare/v0.6.2...v0.6.3
