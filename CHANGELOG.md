@@ -1,4 +1,6 @@
-## [0.7.4] - 2023-07-10
+## [0.7.5] - 2023-07-10
+
+Note: 0.7.4 had a minor bug with pyreference.cfg defaults 
 
 ### Changed
 
@@ -96,8 +98,8 @@
 - Initial commit. Created project, extracted existing code from SACGF bioinformatics repo
 - Wrote GTF to JSON converter and loader
 
-[unreleased]: https://github.com/SACGF/pyreference/compare/v0.7.4...HEAD
-[0.7.4]: https://github.com/SACGF/pyreference/compare/v0.7.3...v0.7.4
+[unreleased]: https://github.com/SACGF/pyreference/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/SACGF/pyreference/compare/v0.7.3...v0.7.5
 [0.7.3]: https://github.com/SACGF/pyreference/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/SACGF/pyreference/compare/v0.6.3...v0.7.2
 [0.6.3]: https://github.com/SACGF/pyreference/compare/v0.6.2...v0.6.3

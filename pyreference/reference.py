@@ -146,7 +146,7 @@ class Reference(object):
         self._gene_by_id = {}  # Object pool for Gene objects
 
         REPRESENTATIVE_TRANSCRIPT_METHODS = ["tags", "longest_coding", "longest"]
-        representative_transcript_raw = params.get("representative_transcript", ["longest_coding" , "longest"])
+        representative_transcript_raw = params.get("representative_transcript") or ["longest_coding" , "longest"]
         if isinstance(representative_transcript_raw, str):
             self.representative_transcript_list = representative_transcript_raw.split(",")
         else:
