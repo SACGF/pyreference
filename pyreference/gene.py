@@ -9,6 +9,23 @@ from pyreference.genomic_region import GenomicRegion
 from pyreference.transcript import Transcript
 import sys
 
+try:
+    _big_int = sys.maxsize  # Python 3
+except AttributeError:
+    _big_int = sys.maxint  # Python 2
+
+def min_transcript_key(t):
+    # We want the MAX length - and MIN ID, so sort by min but use maxint-length
+    # We also want NM_007041 (len 2209) over NM_001001976 (len 2209)
+    # Which is annoyingly zero padded - so use smallest ID length, then only if equal do alpha sort
+    return _big_int - t.length, len(t.get_id()), t.get_id()
+
+
+def min_canonical_tag(t):
+    # we use 'not in' as False < True (so will get minimum)
+    CANONICAL_TAGS = ["MANE Select", "MANE_Select", "RefSeq Select", "Ensembl Select"]
+    return tuple([x not in t.tags for x in CANONICAL_TAGS])
+
 
 class Gene(GenomicRegion):
     """ Gene (which could contain multiple transcripts) """
@@ -53,18 +70,36 @@ class Gene(GenomicRegion):
     def representative_transcript(self):
         """ Returns longest coding transcript if gene is coding, otherwise longest transcript
             Sort transcript ID alphabetically if equal length """
-        
-        transcript = self.get_longest_coding_transcript()
-        if transcript is None:
-            transcript = self.get_longest_transcript()
+
+        methods = {
+            "tags": self.get_canonical_transcript_from_tags,
+            "longest_coding": self.get_longest_coding_transcript,
+            "longest": self.get_longest_transcript,
+        }
+
+        transcript = None
+        for rt_method in self.reference.representative_transcript_list:
+            func = methods[rt_method]
+            transcript = func()
+            if transcript:
+                return transcript
         return transcript
+
+    def get_canonical_transcript_from_tags(self):
+        """ Using the GTF tag (eg 'MANE_select') """
+        transcripts = self.transcripts
+        transcripts = filter(lambda t: t.tags, transcripts)
+        canonical_transcript = None
+        if transcripts:
+            canonical_transcript = min(transcripts, key=min_canonical_tag)
+        return canonical_transcript
 
     def get_representative_transcript(self):
         return self.representative_transcript
 
     def get_longest_coding_transcript(self):
         return self.get_longest_transcript(coding_only=True)
-    
+
     def get_longest_transcript(self, coding_only=False):
         transcripts = self.transcripts
         if coding_only:
@@ -72,17 +107,6 @@ class Gene(GenomicRegion):
         
         longest_transcript = None
         if transcripts:
-            try:
-                big_int = sys.maxsize  # Python 3
-            except AttributeError:
-                big_int = sys.maxint  # Python 2
-
-            # We want the MAX length - and MIN ID, so sort by min but use maxint-length
-            # We also want NM_007041 (len 2209) over NM_001001976 (len 2209)
-            # Which is annoyingly zero padded - so use smallest ID length, then only if equal do alpha sort 
-            def min_transcript_key(t):
-                return big_int - t.length, len(t.get_id()), t.get_id()
-
             longest_transcript = min(transcripts, key=min_transcript_key)
         return longest_transcript
 

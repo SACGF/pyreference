@@ -145,6 +145,22 @@ class Reference(object):
         self.stranded = params.get("stranded", True)
         self._gene_by_id = {}  # Object pool for Gene objects
 
+        REPRESENTATIVE_TRANSCRIPT_METHODS = ["tags", "longest_coding", "longest"]
+        representative_transcript_raw = params.get("representative_transcript", ["longest_coding" , "longest"])
+        if isinstance(representative_transcript_raw, str):
+            self.representative_transcript_list = representative_transcript_raw.split(",")
+        else:
+            self.representative_transcript_list = representative_transcript_raw
+        if not (self.representative_transcript_list and
+                all([r in REPRESENTATIVE_TRANSCRIPT_METHODS for r in self.representative_transcript_list])):
+            msg = "representative_transcript='%(representative_transcript)s' must be list or comma " \
+                  "separated list of '%(valid_representative_transcript)s'"
+            msg_params = {
+                'representative_transcript': representative_transcript_raw,
+                'valid_representative_transcript': ', '.join(REPRESENTATIVE_TRANSCRIPT_METHODS),
+            }
+            raise ValueError(msg % msg_params)
+
         # Need at least this
         REQUIRED = {
             "genome_accession": self._genome_accession,

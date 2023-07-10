@@ -27,6 +27,10 @@ class Transcript(GenomicRegion):
     def is_coding(self):
         return "start_codon" in self._dict
 
+    @lazy
+    def tags(self):
+        return set(self._dict.get("tag", "").split(","))
+
     @property
     def is_forward_strand(self):
         return self._dict["strand"] == "+"
