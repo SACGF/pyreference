@@ -46,7 +46,7 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
                 json_bytes = f.read()
         except IOError as e:
             # We sometimes get [Errno 5] Input/output error using CIFS (SMB)
-            print(e, file=sys.stderr)
+            logging.warning(e)
             if e.errno == 5:
                 decompress_in_memory = True
 
@@ -58,7 +58,7 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
         if use_gzip_open:
             msg = "gzip.open failed, successfully fell back on in-memory decompression\n"
             msg += "Please set use_gzip_open=False in your settings to speed up load times."
-            print(msg, file=sys.stderr)
+            logging.warning(msg)
 
     if six.PY2:
         json_str = json_bytes
@@ -82,6 +82,7 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
 
     required_cdot_schema_version = get_schema_version(CDOT_VERSION_SCHEMA)
     if required_cdot_schema_version != json_version:
+        import pyreference
         params = {
             "pyreference_version": pyreference.__version__,
             "required_cdot_schema_version": required_cdot_schema_version,
@@ -142,6 +143,7 @@ class Reference(object):
         self._cdot_schema_version = None  # Set on load
         self.use_gzip_open = params.get("use_gzip_open", True)
         self.stranded = params.get("stranded", True)
+        self._gene_by_id = {}  # Object pool for Gene objects
 
         # Need at least this
         REQUIRED = {
@@ -174,6 +176,7 @@ class Reference(object):
         self._build_params = params
 
     def info(self):
+        import pyreference
         return {
             "python": sys.version,
             "pyreference_version": pyreference.__version__,
@@ -182,10 +185,39 @@ class Reference(object):
             "genes_json": self._genes_json,
         }
 
+    @staticmethod
+    def _merge_genes_with_duplicate_symbols(genes_dict):
+        # There are occasionally multiple genes per symbol in Ensembl GTF files. Merge these
+        # taking the first one in file. This isn't correct but is a simplifying assumption of how people want to work
+        # @see https://github.com/SACGF/pyreference/issues/10
+        genes_by_symbol = {}
+        gene_merges = {}  # key = original gene ID (which will be lost), value = merge gene ID (kept)
+        for gene_id, gene_data in genes_dict["genes"].items():
+            gene_symbol = gene_data.get("gene_symbol")
+            if gene_symbol:
+                existing_gene_id = genes_by_symbol.get(gene_symbol)
+                if existing_gene_id:
+                    logging.warning("GeneID with duplicate symbol for %s: merging %s into %s",
+                                    gene_symbol, gene_id, existing_gene_id)
+                    gene_merges[gene_id] = existing_gene_id
+                else:
+                    genes_by_symbol[gene_symbol] = gene_id
+
+        # Replace transcripts
+        for transcript_data in genes_dict["transcripts"].values():
+            gene_version = transcript_data["gene_version"]
+            existing_gene_id = gene_merges.get(gene_version)
+            if existing_gene_id:
+                transcript_data["gene_version"] = existing_gene_id
+
+        for gene_id, existing_gene_id in gene_merges.items():
+            del genes_dict["genes"][gene_id]
+
     @lazy
     def _genes_dict(self):
         genes_dict, cdot_schema_version = _load_gzip_json(self._genes_json, self.use_gzip_open)
         self._cdot_schema_version = cdot_schema_version
+        self._merge_genes_with_duplicate_symbols(genes_dict)
         return genes_dict
 
     def get_transcript_dict(self, transcript_id):
@@ -287,6 +319,9 @@ class Reference(object):
         return genes_by_biotype
 
     def get_gene_by_id(self, gene_id):
+        gene = self._gene_by_id.get(gene_id)  # Re-use from shared pool
+        if gene:
+            return gene
         genes_by_id = self._genes_dict["genes"]
         gene_dict = genes_by_id.get(gene_id)
         if gene_dict is None:
@@ -300,22 +335,39 @@ class Reference(object):
         # Retrieve gene extents from transcript
         start = sys.maxsize
         end = 0
-        chrom = None
-        strand = None
+        chrom_set = set()
+        strand_set = set()
         for transcript_id in transcripts:
             tdata = self.get_transcript_dict(transcript_id)
             exons = tdata["exons"]
             start = min(start, exons[0][0])
             end = max(end, exons[-1][1])
-            if chrom is None:
-                chrom = tdata[settings.CHROM]
-                strand = tdata[settings.STRAND]
+            chrom_set.add(tdata[settings.CHROM])
+            strand_set.add(tdata[settings.STRAND])
 
+        num_chrom = len(chrom_set)
+
+        gene_symbol = gene_dict["gene_symbol"]
+        if num_chrom == 1:
+            chrom = chrom_set.pop()
+        else:
+            logging.warning("Transcripts for gene %s were on %d chromosomes (expected 1)", gene_symbol, num_chrom)
+            chrom = ""
         gene_dict[settings.CHROM] = chrom
+
+        num_strand = len(strand_set)
+        if num_strand == 1:
+            strand = strand_set.pop()
+        else:
+            strand = ""
+            logging.warning("Transcripts for gene %s were on %d strands (expected 1)", gene_symbol, num_strand)
+
         gene_dict[settings.STRAND] = strand
         gene_dict[settings.START] = start
         gene_dict[settings.END] = end
-        return Gene(self, gene_id, gene_dict)
+        gene = Gene(self, gene_id, gene_dict)
+        self._gene_by_id[gene_id] = gene
+        return gene
 
     def get_transcript_by_id(self, transcript_id):
         transcript_dict = self.get_transcript_dict(transcript_id)
