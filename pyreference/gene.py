@@ -16,6 +16,7 @@ class Gene(GenomicRegion):
     @property
     def name(self):
         return self.get_gene_name()
+
     @property
     def description(self):
         return self._dict.get("description")

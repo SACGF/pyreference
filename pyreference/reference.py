@@ -67,15 +67,18 @@ def _load_gzip_json(gz_json_file_name, use_gzip_open=True):
     data = json.loads(json_str)
 
     extra_message = None
-    if raw_json_version := data.get(settings.CDOT_JSON_VERSION_KEY):
+    raw_json_version = data.get(settings.CDOT_JSON_VERSION_KEY)
+    if raw_json_version:
         json_version = get_schema_version(raw_json_version.split("."))
         version_key = settings.CDOT_JSON_VERSION_KEY
-    elif old_pyreference_version := data.get("pyreference_json_version"):
-        json_version = "Old pre-cot Pyreference v%d" % old_pyreference_version
-        version_key = "pyreference_json_version"
-        extra_message = "PyReference switched to using cdot generated files in November 2022\n"
     else:
-        raise ValueError('Invalid PyReference genes_json file: %s' % gz_json_file_name)
+        old_pyreference_version = data.get("pyreference_json_version")
+        if old_pyreference_version:
+            json_version = "Old pre-cot Pyreference v%d" % old_pyreference_version
+            version_key = "pyreference_json_version"
+            extra_message = "PyReference switched to using cdot generated files in November 2022\n"
+        else:
+            raise ValueError('Invalid PyReference genes_json file: %s' % gz_json_file_name)
 
     required_cdot_schema_version = get_schema_version(CDOT_VERSION_SCHEMA)
     if required_cdot_schema_version != json_version:
@@ -203,7 +206,8 @@ class Reference(object):
         gene_transcripts = defaultdict(set)
         gene_version_by_biotype = defaultdict(set)  # Set from both genes/transcripts
         for transcript_id, tdata in self._genes_dict["transcripts"].items():
-            if gene_version := tdata["gene_version"]:
+            gene_version = tdata.get("gene_version")
+            if gene_version:
                 gene_transcripts[gene_version].add(transcript_id)
                 # In cdot 0.2.20 onwards gene version will have biotype of any transcripts, but earlier this wasn't so
                 for biotype in tdata["biotype"]:
@@ -211,9 +215,11 @@ class Reference(object):
 
         gene_version_by_symbol = {}
         for gene_version, gdata in self._genes_dict["genes"].items():
-            if gene_symbol := gdata.get("gene_symbol"):
+            gene_symbol = gdata.get("gene_symbol")
+            if gene_symbol:
                 gene_version_by_symbol[gene_symbol] = gene_version
-            if raw_biotype := gdata.get("biotype"):
+            raw_biotype = gdata.get("biotype")
+            if raw_biotype:
                 # Previously biotype was a string. In cdot 0.2.20 gene biotype is now a list (to match transcript)
                 if isinstance(raw_biotype, list):
                     biotype_list = raw_biotype
